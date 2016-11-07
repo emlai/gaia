@@ -6,7 +6,7 @@ import AST
 import IRGen
 import JIT
 
-final class REPL {
+public final class REPL {
     private let parser: Parser
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
@@ -14,7 +14,7 @@ final class REPL {
     private var executionEngine: LLVMExecutionEngineRef?
     private let jit: GaiaJITRef
 
-    init() {
+    public init() {
         LLVMInitializeNativeTarget();
         LLVMInitializeNativeAsmPrinter();
         LLVMInitializeNativeAsmParser();
@@ -31,7 +31,7 @@ final class REPL {
         GaiaDisposeJIT(jit)
     }
 
-    func run() {
+    public func run() {
         var count = 0
         while true {
             print("\(count)> ", terminator: "")
