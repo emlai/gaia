@@ -44,9 +44,10 @@ public final class REPL {
                     case .keyword(.func): try handleFunctionDefinition()
                     default: try handleToplevelExpression()
                 }
+            } catch IRGenError.unknownIdentifier(let message) {
+                outputStream.write("\(message)\n")
             } catch {
                 _ = parser.nextToken() // Skip token for error recovery.
-
             }
             count += 1
         }

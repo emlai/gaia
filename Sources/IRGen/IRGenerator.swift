@@ -2,8 +2,10 @@ import LLVM_C.Analysis
 import LLVM_C.Core
 import AST
 
-enum IRGenError: Error {
+public enum IRGenError: Error {
     case invalidType(String)
+    case unknownIdentifier(message: String)
+    case argumentMismatch(message: String)
 }
 
 let LLVMFalse: LLVMBool = 0
@@ -33,9 +35,9 @@ public final class IRGenerator: ASTVisitor {
         return values.last!
     }
 
-    public func visitVariableExpression(name: String) {
+    public func visitVariableExpression(name: String) throws {
         guard let namedValue = namedValues[name] else {
-            return error("unknown variable '\(name)'")
+            throw IRGenError.unknownIdentifier(message: "unknown variable '\(name)'")
         }
         values.append(LLVMBuildLoad(builder, namedValue, name))
     }
@@ -83,7 +85,7 @@ public final class IRGenerator: ASTVisitor {
             case .lessThan: v = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp")
             case .greaterThanOrEqual: v = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "cmptmp")
             case .lessThanOrEqual: v = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "cmptmp")
-            default: return error("unsupported binary operator")
+            default: throw IRGenError.unknownIdentifier(message: "unsupported binary operator")
         }
         
         values.append(v)
@@ -91,11 +93,11 @@ public final class IRGenerator: ASTVisitor {
 
     public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws {
         guard let function = try? lookupFunction(named: functionName) else {
-            return error("unknown function name")
+            throw IRGenError.unknownIdentifier(message: "unknown function name '\(functionName)'")
         }
 
         if Int(LLVMCountParams(function)) != arguments.count {
-            return error("wrong number of arguments, expected \(LLVMCountParams(function))")
+            throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(LLVMCountParams(function))")
         }
 
         var argumentValues = [LLVMValueRef?]()
@@ -197,11 +199,6 @@ public final class IRGenerator: ASTVisitor {
         // TODO: parameter names
 
         values.append(function)
-    }
-
-    private func error(_ message: String) {
-        values.append(nil)
-        print(message)
     }
 
     /// Searches `module` for an existing function declaration with the given name,
