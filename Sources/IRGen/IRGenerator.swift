@@ -17,7 +17,6 @@ public final class IRGenerator: ASTVisitor {
     private let builder: LLVMBuilderRef
     private var namedValues: [String: LLVMValueRef]
     private var functionPrototypes: [String: FunctionPrototype]
-    private var values: [LLVMValueRef?]
     private var returnType: LLVMTypeRef?
     public var functionPassManager: LLVMPassManagerRef?
     public var module: LLVMModuleRef?
@@ -27,69 +26,50 @@ public final class IRGenerator: ASTVisitor {
         builder = LLVMCreateBuilderInContext(context)
         namedValues = [:]
         functionPrototypes = [:]
-        values = []
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
-    public var result: LLVMValueRef? {
-        return values.last!
-    }
-
-    public func visitVariableExpression(name: String) throws {
+    public func visitVariableExpression(name: String) throws -> LLVMValueRef {
         guard let namedValue = namedValues[name] else {
             throw IRGenError.unknownIdentifier(message: "unknown variable '\(name)'")
         }
-        values.append(LLVMBuildLoad(builder, namedValue, name))
+        return LLVMBuildLoad(builder, namedValue, name)
     }
 
-    public func visitUnaryExpression(operator: UnaryOperator, operand: Expression) throws {
-        try operand.acceptVisitor(self)
-
-        guard let operandValue = values.last ?? nil else { return /* TODO: Should we simply return here? */ }
-        values.removeLast()
-
-        let value: LLVMValueRef
+    public func visitUnaryExpression(operator: UnaryOperator, operand: Expression) throws -> LLVMValueRef {
+        let operandValue = try operand.acceptVisitor(self)
         switch `operator` {
-            case .not: value = try buildLogicalNegation(of: operandValue)
-            case .plus: value = operandValue
-            case .minus: value = try buildNumericNegation(of: operandValue)
+            case .not: return try buildLogicalNegation(of: operandValue)
+            case .plus: return operandValue
+            case .minus: return try buildNumericNegation(of: operandValue)
         }
-        values.append(value)
     }
 
-    public func visitBinaryExpression(operator: BinaryOperator, lhs: Expression, rhs: Expression) throws {
+    public func visitBinaryExpression(operator: BinaryOperator, lhs: Expression, rhs: Expression) throws -> LLVMValueRef {
         // Special case for '=' because we don't want to emit lhs as an expression.
         if (`operator` == .assignment) {
             return buildAssignment(operator: `operator`, lhs: lhs, rhs: rhs)
         }
 
-        try lhs.acceptVisitor(self)
-        guard let left = values.last ?? nil else { return }
-        values.removeLast()
+        let left = try lhs.acceptVisitor(self)
+        let right = try rhs.acceptVisitor(self)
 
-        try rhs.acceptVisitor(self)
-        guard let right = values.last ?? nil else { return }
-        values.removeLast()
-
-        let v: LLVMValueRef
         switch `operator` {
-            case .plus: v = buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
-            case .minus: v = buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
-            case .multiplication: v = buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
-            case .division: v = buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
-            case .equals: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
-            case .notEquals: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
-            case .greaterThan: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
-            case .lessThan: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
-            case .greaterThanOrEqual: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
-            case .lessThanOrEqual: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
+            case .plus: return buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
+            case .minus: return buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
+            case .multiplication: return buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
+            case .division: return buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
+            case .equals: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
+            case .notEquals: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
+            case .greaterThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .lessThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
+            case .greaterThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
+            case .lessThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
             default: throw IRGenError.unknownIdentifier(message: "unsupported binary operator")
         }
-
-        values.append(v)
     }
 
-    public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws {
+    public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws -> LLVMValueRef {
         guard let function = try? lookupFunction(named: functionName) else {
             throw IRGenError.unknownIdentifier(message: "unknown function name '\(functionName)'")
         }
@@ -101,29 +81,26 @@ public final class IRGenerator: ASTVisitor {
         var argumentValues = [LLVMValueRef?]()
         argumentValues.reserveCapacity(arguments.count)
         for argument in arguments {
-            try argument.acceptVisitor(self)
-            argumentValues.append(values.removeLast())
+            argumentValues.append(try argument.acceptVisitor(self))
         }
-        values.append(LLVMBuildCall(builder, function, &argumentValues, UInt32(argumentValues.count), "calltmp"))
+        return LLVMBuildCall(builder, function, &argumentValues, UInt32(argumentValues.count), "calltmp")
     }
 
-    public func visitIntegerLiteralExpression(value: Int64) {
-        values.append(LLVMConstInt(LLVMInt64TypeInContext(context), UInt64(value), LLVMFalse))
+    public func visitIntegerLiteralExpression(value: Int64) -> LLVMValueRef {
+        return LLVMConstInt(LLVMInt64TypeInContext(context), UInt64(value), LLVMFalse)
     }
 
-    public func visitFloatingPointLiteralExpression(value: Float64) {
-        values.append(LLVMConstReal(LLVMDoubleTypeInContext(context), value))
+    public func visitFloatingPointLiteralExpression(value: Float64) -> LLVMValueRef {
+        return LLVMConstReal(LLVMDoubleTypeInContext(context), value)
     }
 
-    public func visitBooleanLiteralExpression(value: Bool) {
-        values.append(LLVMConstInt(LLVMInt1TypeInContext(context), value ? 1 : 0, LLVMFalse))
+    public func visitBooleanLiteralExpression(value: Bool) -> LLVMValueRef {
+        return LLVMConstInt(LLVMInt1TypeInContext(context), value ? 1 : 0, LLVMFalse)
     }
 
-    public func visitIfExpression(condition: Expression, then: Expression, else: Expression) throws {
+    public func visitIfExpression(condition: Expression, then: Expression, else: Expression) throws -> LLVMValueRef {
         // condition
-        try condition.acceptVisitor(self)
-        guard var conditionValue = values.last! else { return }
-        values.removeLast()
+        var conditionValue = try condition.acceptVisitor(self)
 
         // Convert condition to a bool by comparing to 0.
         let zeroConstant = LLVMConstReal(LLVMDoubleTypeInContext(context), 0)
@@ -139,21 +116,13 @@ public final class IRGenerator: ASTVisitor {
 
         // then
         LLVMPositionBuilderAtEnd(builder, thenBlock)
-
-        try then.acceptVisitor(self)
-        guard var thenValue = values.last else { return }
-        values.removeLast()
-
+        var thenValue: LLVMValueRef? = try then.acceptVisitor(self)
         LLVMBuildBr(builder, mergeBlock)
         thenBlock = LLVMGetInsertBlock(builder)
 
         // else
         LLVMPositionBuilderAtEnd(builder, elseBlock)
-
-        try `else`.acceptVisitor(self)
-        guard var elseValue = values.last else { return }
-        values.removeLast()
-
+        var elseValue: LLVMValueRef? = try `else`.acceptVisitor(self)
         LLVMBuildBr(builder, mergeBlock)
         elseBlock = LLVMGetInsertBlock(builder)
 
@@ -162,36 +131,26 @@ public final class IRGenerator: ASTVisitor {
         let phi = LLVMBuildPhi(builder, LLVMDoubleTypeInContext(context), "iftmp")
         LLVMAddIncoming(phi, &thenValue, &thenBlock, 1)
         LLVMAddIncoming(phi, &elseValue, &elseBlock, 1)
-
-        values.append(phi)
+        return phi!
     }
 
-    public func visitFunction(_ astFunction: Function) throws {
+    public func visitFunction(_ astFunction: Function) throws -> LLVMValueRef {
         let prototype = astFunction.prototype
         functionPrototypes[prototype.name] = astFunction.prototype
-        var llvmFunction = try initFunction(astFunction: astFunction, prototype: prototype)
-
-        guard var value = values.last! else {
-            // Error reading body, remove function.
-            LLVMDeleteFunction(llvmFunction)
-            return
-        }
-
-        values.removeLast()
+        var (llvmFunction, value) = try initFunction(astFunction: astFunction, prototype: prototype)
         returnType = LLVMTypeOf(value)
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
-        llvmFunction = try initFunction(astFunction: astFunction, prototype: prototype)
-        value = values.removeLast()!
+        (llvmFunction, value) = try initFunction(astFunction: astFunction, prototype: prototype)
 
         LLVMBuildRet(builder, value)
         LLVMVerifyFunction(llvmFunction, LLVMAbortProcessAction)
         LLVMRunFunctionPassManager(functionPassManager, llvmFunction)
-        values.append(llvmFunction)
+        return llvmFunction
     }
 
-    public func visitFunctionPrototype(_ prototype: FunctionPrototype) {
+    public func visitFunctionPrototype(_ prototype: FunctionPrototype) -> LLVMValueRef {
         var parameterTypes = [LLVMTypeRef?](repeating: LLVMDoubleTypeInContext(context),
                                            count: prototype.parameters.count)
         let functionType = LLVMFunctionType(returnType, &parameterTypes,
@@ -200,7 +159,7 @@ public final class IRGenerator: ASTVisitor {
 
         // TODO: parameter names
 
-        values.append(function)
+        return function!
     }
 
     /// Searches `module` for an existing function declaration with the given name,
@@ -211,9 +170,9 @@ public final class IRGenerator: ASTVisitor {
 
         // If not, check whether we can codegen the declaration from some existing prototype.
         if let functionPrototype = functionPrototypes[functionName] {
-            try functionPrototype.acceptVisitor(self)
-            assert(LLVMGetValueKind(values.last!) == LLVMFunctionValueKind)
-            return values.last!!
+            let function = try functionPrototype.acceptVisitor(self)
+            assert(LLVMGetValueKind(function) == LLVMFunctionValueKind)
+            return function
         }
 
         return nil // No existing prototype exists.
@@ -223,14 +182,21 @@ public final class IRGenerator: ASTVisitor {
         // TODO
     }
 
-    private func initFunction(astFunction: Function, prototype: FunctionPrototype) throws -> LLVMValueRef {
+    private func initFunction(astFunction: Function, prototype: FunctionPrototype) throws
+        -> (function: LLVMValueRef, body: LLVMValueRef) {
         let llvmFunction = try lookupFunction(named: prototype.name)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
         LLVMPositionBuilderAtEnd(builder, basicBlock)
         namedValues.removeAll(keepingCapacity: true)
         createParameterAllocas(prototype, llvmFunction)
-        try astFunction.body.acceptVisitor(self)
-        return llvmFunction
+        do {
+            let body = try astFunction.body.acceptVisitor(self)
+            return (llvmFunction, body)
+        } catch {
+            // Error reading body, remove function.
+            LLVMDeleteFunction(llvmFunction)
+            throw error
+        }
     }
 
     private func buildBoolToDouble(from boolean: LLVMValueRef) -> LLVMValueRef {
@@ -291,7 +257,8 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildAssignment(operator: BinaryOperator, lhs: Expression, rhs: Expression) {
+    private func buildAssignment(operator: BinaryOperator, lhs: Expression, rhs: Expression) -> LLVMValueRef {
+        fatalError("unimplemented")
         // TODO
     }
 }

@@ -55,12 +55,8 @@ public final class REPL {
 
     private func handleFunctionDefinition() throws {
         let function = try parser.parseFunctionDefinition()
-
-        try function.acceptVisitor(irGenerator)
-        let ir = irGenerator.result!
-
+        let ir = try function.acceptVisitor(irGenerator)
         LLVMDumpValue(ir)
-
         GaiaJITAddModule(jit, &globalModule)
         initModuleAndFunctionPassManager()
     }
@@ -68,9 +64,7 @@ public final class REPL {
     private func handleToplevelExpression() throws {
         // Evaluate a top-level expression into an anonymous function.
         let function = try parser.parseToplevelExpression()
-
-        try function.acceptVisitor(irGenerator)
-        let ir = irGenerator.result!
+        let ir = try function.acceptVisitor(irGenerator)
 
         // Get the type of the expression.
         let type = LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(ir)))!

@@ -38,24 +38,24 @@ public indirect enum Expression: ASTNode {
     case functionCall(functionName: String, arguments: [Expression])
     case `if`(condition: Expression, then: Expression, else: Expression)
 
-    public func acceptVisitor(_ visitor: ASTVisitor) throws {
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
         switch self {
             case .integerLiteral(let value):
-                try visitor.visitIntegerLiteralExpression(value: value)
+                return try visitor.visitIntegerLiteralExpression(value: value)
             case .floatingPointLiteral(let value):
-                try visitor.visitFloatingPointLiteralExpression(value: value)
+                return try visitor.visitFloatingPointLiteralExpression(value: value)
             case .booleanLiteral(let value):
-                try visitor.visitBooleanLiteralExpression(value: value)
+                return try visitor.visitBooleanLiteralExpression(value: value)
             case .variable(let name):
-                try visitor.visitVariableExpression(name: name)
+                return try visitor.visitVariableExpression(name: name)
             case .unary(let op, let operand):
-                try visitor.visitUnaryExpression(operator: op, operand: operand)
+                return try visitor.visitUnaryExpression(operator: op, operand: operand)
             case .binary(let op, let lhs, let rhs):
-                try visitor.visitBinaryExpression(operator: op, lhs: lhs, rhs: rhs)
+                return try visitor.visitBinaryExpression(operator: op, lhs: lhs, rhs: rhs)
             case .functionCall(let functionName, let arguments):
-                try visitor.visitFunctionCallExpression(functionName: functionName, arguments: arguments)
+                return try visitor.visitFunctionCallExpression(functionName: functionName, arguments: arguments)
             case .if(let condition, let then, let `else`):
-                try visitor.visitIfExpression(condition: condition, then: then, else: `else`)
+                return try visitor.visitIfExpression(condition: condition, then: then, else: `else`)
         }
     }
 }
