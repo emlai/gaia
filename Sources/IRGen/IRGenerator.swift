@@ -113,6 +113,10 @@ public final class IRGenerator: ASTVisitor {
         values.append(LLVMConstInt(LLVMInt64TypeInContext(context), UInt64(value), LLVMFalse))
     }
 
+    public func visitFloatingPointLiteralExpression(value: Float64) {
+        values.append(LLVMConstReal(LLVMDoubleTypeInContext(context), value))
+    }
+
     public func visitBooleanLiteralExpression(value: Bool) {
         values.append(LLVMConstInt(LLVMInt1TypeInContext(context), value ? 1 : 0, LLVMFalse))
     }

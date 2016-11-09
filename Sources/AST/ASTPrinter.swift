@@ -45,6 +45,10 @@ public final class ASTPrinter: ASTVisitor {
         outputStream.write(String(value))
     }
 
+    public func visitFloatingPointLiteralExpression(value: Float64) throws {
+        outputStream.write(String(value))
+    }
+
     public func visitBooleanLiteralExpression(value: Bool) throws {
         outputStream.write(String(value))
     }

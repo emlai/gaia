@@ -14,6 +14,7 @@ public enum Token: Equatable {
     case newline
     case identifier(String)
     case integerLiteral(Int64)
+    case floatingPointLiteral(Float64)
     case leftParenthesis
     case rightParenthesis
     case comma
@@ -23,7 +24,7 @@ public enum Token: Equatable {
 
     var isPrimary: Bool {
         switch self {
-            case .eof, .keyword, .integerLiteral, .identifier: return true
+            case .eof, .keyword, .integerLiteral, .floatingPointLiteral, .identifier: return true
             default: return false
         }
     }
@@ -77,7 +78,7 @@ final class Lexer {
         }
 
         if let c = character, CharacterSet.decimalDigits.contains(c) {
-            return lexIntegerLiteral(firstCharacter: c)
+            return lexNumericLiteral(firstCharacter: c)
         }
 
         func lexOperator(_ a: UnicodeScalar, _ aToken: Token, _ bToken: Token) -> Token? {
@@ -139,19 +140,27 @@ final class Lexer {
         }
     }
 
-    private func lexIntegerLiteral(firstCharacter: UnicodeScalar) -> Token {
-        var integerLiteral = String.UnicodeScalarView()
+    private func lexNumericLiteral(firstCharacter: UnicodeScalar) -> Token {
+        var numericLiteral = String.UnicodeScalarView()
         var character: UnicodeScalar? = firstCharacter
+        var floatingPoint = false
+
         while true {
-            integerLiteral.append(character!)
+            numericLiteral.append(character!)
             character = inputStream.read()
-            if let c = character, CharacterSet.decimalDigits.contains(c) {
+            if let c = character, CharacterSet.decimalDigits.contains(c) || c == "." {
                 character = c
+                if c == "." { floatingPoint = true }
             } else {
                 inputStream.unread(character)
                 break
             }
         }
-        return .integerLiteral(Int64(String(integerLiteral))!)
+
+        if floatingPoint {
+            return .floatingPointLiteral(Float64(String(numericLiteral))!)
+        } else {
+            return .integerLiteral(Int64(String(numericLiteral))!)
+        }
     }
 }

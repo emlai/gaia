@@ -78,6 +78,13 @@ public final class Parser {
         return e
     }
 
+    private func parseFloatingPointLiteral() -> Expression {
+        guard case .floatingPointLiteral(let value)? = token else { fatalError() }
+        let e = Expression.floatingPointLiteral(value: value)
+        _ = nextToken() // consume the literal
+        return e
+    }
+
     private func parseParenthesizedExpression() throws -> Expression {
         _ = nextToken() // consume '('
         let e = try parseExpression()
@@ -116,6 +123,7 @@ public final class Parser {
         switch token {
             case .identifier?: return try parseIdentifier()
             case .integerLiteral?: return parseIntegerLiteral()
+            case .floatingPointLiteral?: return parseFloatingPointLiteral()
             case .keyword(.true)?, .keyword(.false)?: return parseBooleanLiteral()
             case .keyword(.if)?: return try parseIf()
             case .leftParenthesis?: return try parseParenthesizedExpression()

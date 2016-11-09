@@ -30,6 +30,7 @@ public enum BinaryOperator: String {
 
 public indirect enum Expression: ASTNode {
     case integerLiteral(value: Int64)
+    case floatingPointLiteral(value: Float64)
     case booleanLiteral(value: Bool)
     case variable(name: String)
     case unary(operator: UnaryOperator, operand: Expression)
@@ -41,6 +42,8 @@ public indirect enum Expression: ASTNode {
         switch self {
             case .integerLiteral(let value):
                 try visitor.visitIntegerLiteralExpression(value: value)
+            case .floatingPointLiteral(let value):
+                try visitor.visitFloatingPointLiteralExpression(value: value)
             case .booleanLiteral(let value):
                 try visitor.visitBooleanLiteralExpression(value: value)
             case .variable(let name):
