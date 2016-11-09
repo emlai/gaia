@@ -56,6 +56,13 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "0 != -1\n0 != 0\n0 != 1\n", producesOutput: "true\nfalse\ntrue\n")
     }
 
+    func testSimpleIfExpression() {
+        XCTAssert(replInput: "if true then 666 else 777\n", producesOutput: "666\n")
+        XCTAssert(replInput: "if false then 666 else 777\n", producesOutput: "777\n")
+        XCTAssert(replInput: "if false then 666 else true\n", producesOutput: "'then' and 'else' branches must have same type\n")
+        XCTAssert(replInput: "if 0 then 666 else 777\n", producesOutput: "'if' condition requires a Bool expression\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -66,6 +73,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleFloatingPointArithmeticExpressions", testSimpleFloatingPointArithmeticExpressions),
         ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
         ("testNumericComparisonExpressions", testNumericComparisonExpressions),
+        ("testSimpleIfExpression", testSimpleIfExpression),
     ]
 }
 

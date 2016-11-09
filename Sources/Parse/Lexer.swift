@@ -4,6 +4,7 @@ import AST
 public enum Keyword: String {
     case `func`
     case `if`
+    case `then`
     case `else`
     case `true`
     case `false`

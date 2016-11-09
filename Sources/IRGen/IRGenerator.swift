@@ -100,11 +100,10 @@ public final class IRGenerator: ASTVisitor {
 
     public func visitIfExpression(condition: Expression, then: Expression, else: Expression) throws -> LLVMValueRef {
         // condition
-        var conditionValue = try condition.acceptVisitor(self)
-
-        // Convert condition to a bool by comparing to 0.
-        let zeroConstant = LLVMConstReal(LLVMDoubleTypeInContext(context), 0)
-        conditionValue = LLVMBuildFCmp(builder, LLVMRealONE, conditionValue, zeroConstant, "ifcond")
+        let conditionValue = try condition.acceptVisitor(self)
+        if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
+            throw IRGenError.invalidType("'if' condition requires a Bool expression")
+        }
 
         let function = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder))
 
@@ -126,9 +125,13 @@ public final class IRGenerator: ASTVisitor {
         LLVMBuildBr(builder, mergeBlock)
         elseBlock = LLVMGetInsertBlock(builder)
 
+        if LLVMTypeOf(thenValue) != LLVMTypeOf(elseValue) {
+            throw IRGenError.invalidType("'then' and 'else' branches must have same type")
+        }
+
         // merge
         LLVMPositionBuilderAtEnd(builder, mergeBlock)
-        let phi = LLVMBuildPhi(builder, LLVMDoubleTypeInContext(context), "iftmp")
+        let phi = LLVMBuildPhi(builder, LLVMTypeOf(thenValue), "iftmp")
         LLVMAddIncoming(phi, &thenValue, &thenBlock, 1)
         LLVMAddIncoming(phi, &elseValue, &elseBlock, 1)
         return phi!

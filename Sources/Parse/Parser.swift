@@ -185,6 +185,8 @@ public final class Parser {
     private func parseIf() throws -> Expression {
         _ = nextToken() // consume 'if'
         let condition = try parseExpression()
+        try expectToken(.keyword(.then))
+        _ = nextToken() // consume 'then'
         let thenBranch = try parseExpression()
         try expectToken(.keyword(.else))
         _ = nextToken() // consume 'else'

@@ -46,6 +46,8 @@ public final class REPL {
                 }
             } catch IRGenError.unknownIdentifier(let message) {
                 outputStream.write("\(message)\n")
+            } catch IRGenError.invalidType(let message) {
+                outputStream.write("\(message)\n")
             } catch {
                 _ = parser.nextToken() // Skip token for error recovery.
             }
