@@ -77,15 +77,15 @@ public final class IRGenerator: ASTVisitor {
             case .minus: v = buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
             case .multiplication: v = buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
             case .division: v = buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
-            case .equals: v = buildEqualityComparison(left, right)
-            case .notEquals: v = buildInequalityComparison(left, right)
-            case .greaterThan: v = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "cmptmp")
-            case .lessThan: v = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp")
-            case .greaterThanOrEqual: v = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "cmptmp")
-            case .lessThanOrEqual: v = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "cmptmp")
+            case .equals: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
+            case .notEquals: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
+            case .greaterThan: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .lessThan: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
+            case .greaterThanOrEqual: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
+            case .lessThanOrEqual: v = buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
             default: throw IRGenError.unknownIdentifier(message: "unsupported binary operator")
         }
-        
+
         values.append(v)
     }
 
@@ -253,23 +253,23 @@ public final class IRGenerator: ASTVisitor {
         return LLVMBuildICmp(builder, LLVMIntEQ, operand, falseConstant, "negtmp")
     }
 
-    private func buildEqualityComparison(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef) -> LLVMValueRef {
-        switch LLVMTypeOf(lhs) {
-            case LLVMInt1TypeInContext(context):
-                return LLVMBuildICmp(builder, LLVMIntEQ, lhs, rhs, "eqltmp")
-            case LLVMDoubleTypeInContext(context):
-                return LLVMBuildFCmp(builder, LLVMRealOEQ, lhs, rhs, "eqltmp")
-            default:
-                fatalError("unknown type")
-        }
-    }
+    typealias IntComparisonOperationBuildFunc =
+        (LLVMBuilderRef, LLVMIntPredicate, LLVMValueRef, LLVMValueRef, UnsafePointer<CChar>) -> LLVMValueRef!
+    typealias RealComparisonOperationBuildFunc =
+        (LLVMBuilderRef, LLVMRealPredicate, LLVMValueRef, LLVMValueRef, UnsafePointer<CChar>) -> LLVMValueRef!
 
-    private func buildInequalityComparison(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef) -> LLVMValueRef {
+    private func buildComparisonOperation(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef,
+                                          _ integerOperationBuildFunc: IntComparisonOperationBuildFunc,
+                                          _ floatingPointOperationBuildFunc: RealComparisonOperationBuildFunc,
+                                          _ integerOperationPredicate: LLVMIntPredicate,
+                                          _ floatingPointOperationPredicate: LLVMRealPredicate,
+                                          _ name: String) -> LLVMValueRef {
         switch LLVMTypeOf(lhs) {
-            case LLVMInt1TypeInContext(context):
-                return LLVMBuildICmp(builder, LLVMIntNE, lhs, rhs, "neqtmp")
+            case LLVMInt1TypeInContext(context),
+                 LLVMInt64TypeInContext(context):
+                return integerOperationBuildFunc(builder, integerOperationPredicate, lhs, rhs, name)
             case LLVMDoubleTypeInContext(context):
-                return LLVMBuildFCmp(builder, LLVMRealONE, lhs, rhs, "neqtmp")
+                return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
             default:
                 fatalError("unknown type")
         }

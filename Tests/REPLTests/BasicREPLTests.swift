@@ -47,6 +47,15 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "(6 - 4) / 2\n", producesOutput: "1\n")
     }
 
+    func testNumericComparisonExpressions() {
+        XCTAssert(replInput: "0 < -1\n0 < 0\n0 < 1\n", producesOutput: "false\nfalse\ntrue\n")
+        XCTAssert(replInput: "0 > -1\n0 > 0\n0 > 1\n", producesOutput: "true\nfalse\nfalse\n")
+        XCTAssert(replInput: "0 <= -1\n0 <= 0\n0 <= 1\n", producesOutput: "false\ntrue\ntrue\n")
+        XCTAssert(replInput: "0 >= -1\n0 >= 0\n0 >= 1\n", producesOutput: "true\ntrue\nfalse\n")
+        XCTAssert(replInput: "0 == -1\n0 == 0\n0 == 1\n", producesOutput: "false\ntrue\nfalse\n")
+        XCTAssert(replInput: "0 != -1\n0 != 0\n0 != 1\n", producesOutput: "true\nfalse\ntrue\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -56,6 +65,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleIntegerArithmeticExpressions", testSimpleIntegerArithmeticExpressions),
         ("testSimpleFloatingPointArithmeticExpressions", testSimpleFloatingPointArithmeticExpressions),
         ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
+        ("testNumericComparisonExpressions", testNumericComparisonExpressions),
     ]
 }
 
