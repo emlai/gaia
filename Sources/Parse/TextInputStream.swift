@@ -32,10 +32,8 @@ public final class Stdin: TextInputStream {
 
     public func unread(_ character: UnicodeScalar?) {
         if let c = character {
-            buffer.unicodeScalars.append(c)
-            eof = false
-        } else {
-            eof = true
+            buffer.unicodeScalars.insert(c, at: buffer.unicodeScalars.startIndex)
         }
+        eof = character == nil
     }
 }

@@ -12,6 +12,11 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "false\ntrue\n", producesOutput: "false\ntrue\n")
     }
 
+    func testBooleanLiteralNegation() {
+        XCTAssert(replInput: "!false\n!true\n", producesOutput: "true\nfalse\n")
+        XCTAssert(replInput: "!!false\n!!true\n", producesOutput: "false\ntrue\n")
+    }
+
     func testFloatingPointLiteralExpression() {
         XCTAssert(replInput: "3.1415926536\n0.10\n", producesOutput: "3.1415926536\n0.1\n")
         XCTAssert(replInput: "-3.1415926536\n-0.10\n", producesOutput: "-3.1415926536\n-0.1\n")
@@ -24,6 +29,7 @@ class BasicREPLTests: XCTestCase {
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
+        ("testBooleanLiteralNegation", testBooleanLiteralNegation),
         ("testFloatingPointLiteralExpression", testFloatingPointLiteralExpression),
         ("testUnknownVariableExpression", testUnknownVariableExpression),
     ]

@@ -249,7 +249,7 @@ public final class IRGenerator: ASTVisitor {
         if LLVMTypeOf(operand) != LLVMInt1TypeInContext(context) {
             throw IRGenError.invalidType("logical negation requires a Bool operand")
         }
-        let falseConstant = LLVMConstInt(LLVMInt1TypeInContext(context), 1, LLVMFalse)
+        let falseConstant = LLVMConstInt(LLVMInt1TypeInContext(context), 0, LLVMFalse)
         return LLVMBuildICmp(builder, LLVMIntEQ, operand, falseConstant, "negtmp")
     }
 
