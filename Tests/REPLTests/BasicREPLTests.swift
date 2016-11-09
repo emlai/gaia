@@ -11,9 +11,14 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "false\ntrue\n", producesOutput: "false\ntrue\n")
     }
 
+    func testUnknownVariableExpression() {
+        XCTAssert(replInput: "foo\nfoo\n", producesOutput: "unknown variable 'foo'\nunknown variable 'foo'\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
+        ("testUnknownVariableExpression", testUnknownVariableExpression),
     ]
 }
 
