@@ -9,8 +9,8 @@ public final class Parser {
     private let lexer: Lexer
     private var token: Token! /// The token currently being processed.
 
-    public init() {
-        lexer = Lexer(readFrom: Stdin())
+    public init(readingFrom inputStream: TextInputStream = Stdin()) {
+        lexer = Lexer(readFrom: inputStream)
         token = nil
     }
 

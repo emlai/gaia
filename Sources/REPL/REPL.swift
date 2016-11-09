@@ -7,6 +7,7 @@ import IRGen
 import JIT
 
 public final class REPL {
+    private var outputStream: TextOutputStream
     private let parser: Parser
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
@@ -14,15 +15,16 @@ public final class REPL {
     private var executionEngine: LLVMExecutionEngineRef?
     private let jit: GaiaJITRef
 
-    public init() {
+    public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout()) {
         LLVMInitializeNativeTarget();
         LLVMInitializeNativeAsmPrinter();
         LLVMInitializeNativeAsmParser();
 
         jit = GaiaCreateJIT()
 
-        parser = Parser()
-        astPrinter = ASTPrinter(printingTo: Stdout())
+        self.outputStream = outputStream
+        parser = Parser(readingFrom: inputStream)
+        astPrinter = ASTPrinter(printingTo: outputStream)
         irGenerator = IRGenerator(context: LLVMGetGlobalContext())
         initModuleAndFunctionPassManager()
     }
@@ -82,7 +84,8 @@ public final class REPL {
             fatalError("function not found")
         }
 
-        print(evaluate(symbolAddress, type: type))
+        outputStream.write(evaluate(symbolAddress, type: type))
+        outputStream.write("\n")
 
         // Delete the anonymous expression module from the JIT.
         GaiaJITRemoveModule(jit, moduleHandle)
