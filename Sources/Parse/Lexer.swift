@@ -32,10 +32,10 @@ public enum Token: Equatable {
     }
 
     var precedence: Int {
-        switch self {
-            case .binaryOperator(let op): return op.precedence
-            default: return -1
+        if let binaryOperator = BinaryOperator(from: self) {
+            return binaryOperator.precedence
         }
+        return -1
     }
 
     public static func ==(lhs: Token, rhs: Token) -> Bool {
@@ -52,6 +52,17 @@ public enum Token: Equatable {
             case (.minus, .minus): return true
             case (.binaryOperator(let a), .binaryOperator(let b)): return a == b
             default: return false
+        }
+    }
+}
+
+extension BinaryOperator {
+    init?(from token: Token) {
+        switch token {
+            case .binaryOperator(let op): self = op
+            case .plus: self = .plus // FIXME: Can be both unary and binary.
+            case .minus: self = .minus // FIXME: Can be both unary and binary.
+            default: return nil
         }
     }
 }

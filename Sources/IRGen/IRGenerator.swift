@@ -73,10 +73,10 @@ public final class IRGenerator: ASTVisitor {
 
         let v: LLVMValueRef
         switch `operator` {
-            case .plus: v = LLVMBuildFAdd(builder, left, right, "addtmp")
-            case .minus: v = LLVMBuildFSub(builder, left, right, "subtmp")
-            case .multiplication: v = LLVMBuildFMul(builder, left, right, "multmp")
-            case .division: v = LLVMBuildFDiv(builder, left, right, "divtmp")
+            case .plus: v = buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
+            case .minus: v = buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
+            case .multiplication: v = buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
+            case .division: v = buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
             case .equals: v = buildEqualityComparison(left, right)
             case .notEquals: v = buildInequalityComparison(left, right)
             case .greaterThan: v = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "cmptmp")
@@ -272,6 +272,22 @@ public final class IRGenerator: ASTVisitor {
                 return LLVMBuildFCmp(builder, LLVMRealONE, lhs, rhs, "neqtmp")
             default:
                 fatalError("unknown type")
+        }
+    }
+
+    typealias BinaryOperationBuildFunc =
+        (LLVMBuilderRef, LLVMValueRef, LLVMValueRef, UnsafePointer<CChar>) -> LLVMValueRef!
+
+    private func buildBinaryOperation(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef,
+                                      _ integerOperationBuildFunc: BinaryOperationBuildFunc,
+                                      _ floatingPointOperationBuildFunc: BinaryOperationBuildFunc,
+                                      _ name: String) -> LLVMValueRef {
+        switch LLVMTypeOf(lhs) {
+            case LLVMInt64TypeInContext(context):
+                return integerOperationBuildFunc(builder, lhs, rhs, name)
+            case LLVMDoubleTypeInContext(context):
+                return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
+            default: fatalError("unknown type")
         }
     }
 

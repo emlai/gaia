@@ -162,10 +162,8 @@ public final class Parser {
             if tokenPrecedence < precedence { return lhs }
 
             // It's a binary operator.
-            let binaryOperator: BinaryOperator
-            switch token {
-                case .binaryOperator(let op)?: binaryOperator = op
-                default: preconditionFailure("expected binary operator")
+            guard let binaryOperator = BinaryOperator(from: token) else {
+                preconditionFailure("expected binary operator")
             }
             _ = nextToken()
 

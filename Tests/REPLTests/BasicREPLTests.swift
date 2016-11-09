@@ -26,12 +26,36 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "foo\nfoo\n", producesOutput: "unknown variable 'foo'\nunknown variable 'foo'\n")
     }
 
+    func testSimpleIntegerArithmeticExpressions() {
+        XCTAssert(replInput: "4 + 4\n", producesOutput: "8\n")
+        XCTAssert(replInput: "4 - 4\n", producesOutput: "0\n")
+        XCTAssert(replInput: "4 * 4\n", producesOutput: "16\n")
+        XCTAssert(replInput: "4 / 4\n", producesOutput: "1\n")
+    }
+
+    func testSimpleFloatingPointArithmeticExpressions() {
+        XCTAssert(replInput: "0.1 + 0.2\n", producesOutput: "0.3\n")
+        XCTAssert(replInput: "0.1 - 0.2\n", producesOutput: "-0.1\n")
+        XCTAssert(replInput: "0.1 * 0.2\n", producesOutput: "0.02\n")
+        XCTAssert(replInput: "0.1 / 0.2\n", producesOutput: "0.5\n")
+    }
+
+    func testArithmeticExpressionsWithPrecedence() {
+        XCTAssert(replInput: "6 + 4 * 2\n", producesOutput: "14\n")
+        XCTAssert(replInput: "(6 + 4) * 2\n", producesOutput: "20\n")
+        XCTAssert(replInput: "6 - 4 / 2\n", producesOutput: "4\n")
+        XCTAssert(replInput: "(6 - 4) / 2\n", producesOutput: "1\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
         ("testBooleanLiteralNegation", testBooleanLiteralNegation),
         ("testFloatingPointLiteralExpression", testFloatingPointLiteralExpression),
         ("testUnknownVariableExpression", testUnknownVariableExpression),
+        ("testSimpleIntegerArithmeticExpressions", testSimpleIntegerArithmeticExpressions),
+        ("testSimpleFloatingPointArithmeticExpressions", testSimpleFloatingPointArithmeticExpressions),
+        ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
     ]
 }
 
