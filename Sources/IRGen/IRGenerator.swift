@@ -247,7 +247,7 @@ public final class IRGenerator: ASTVisitor {
 
     private func buildLogicalNegation(of operand: LLVMValueRef) throws -> LLVMValueRef {
         if LLVMTypeOf(operand) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType("logical negation requires a Bool operand");
+            throw IRGenError.invalidType("logical negation requires a Bool operand")
         }
         let falseConstant = LLVMConstInt(LLVMInt1TypeInContext(context), 1, LLVMFalse)
         return LLVMBuildICmp(builder, LLVMIntEQ, operand, falseConstant, "negtmp")
@@ -260,7 +260,7 @@ public final class IRGenerator: ASTVisitor {
             case LLVMDoubleTypeInContext(context):
                 return LLVMBuildFCmp(builder, LLVMRealOEQ, lhs, rhs, "eqltmp")
             default:
-                fatalError("unknown type");
+                fatalError("unknown type")
         }
     }
 
@@ -271,7 +271,7 @@ public final class IRGenerator: ASTVisitor {
             case LLVMDoubleTypeInContext(context):
                 return LLVMBuildFCmp(builder, LLVMRealONE, lhs, rhs, "neqtmp")
             default:
-                fatalError("unknown type");
+                fatalError("unknown type")
         }
     }
 

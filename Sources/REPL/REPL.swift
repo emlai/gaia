@@ -16,9 +16,9 @@ public final class REPL {
     private let jit: GaiaJITRef
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout()) {
-        LLVMInitializeNativeTarget();
-        LLVMInitializeNativeAsmPrinter();
-        LLVMInitializeNativeAsmParser();
+        LLVMInitializeNativeTarget()
+        LLVMInitializeNativeAsmPrinter()
+        LLVMInitializeNativeAsmParser()
 
         jit = GaiaCreateJIT()
 
