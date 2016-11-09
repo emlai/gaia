@@ -19,7 +19,9 @@ public enum Token: Equatable {
     case rightParenthesis
     case comma
     case keyword(Keyword)
-    case unaryOperator(UnaryOperator)
+    case not
+    case plus
+    case minus
     case binaryOperator(BinaryOperator)
 
     var isPrimary: Bool {
@@ -45,7 +47,9 @@ public enum Token: Equatable {
             case (.rightParenthesis, .rightParenthesis): return true
             case (.comma, .comma): return true
             case (.keyword(let a), .keyword(let b)): return a == b
-            case (.unaryOperator(let a), .unaryOperator(let b)): return a == b
+            case (.not, .not): return true
+            case (.plus, .plus): return true
+            case (.minus, .minus): return true
             case (.binaryOperator(let a), .binaryOperator(let b)): return a == b
             default: return false
         }
@@ -92,7 +96,7 @@ final class Lexer {
         }
 
         if let t = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) { return t }
-        if let t = lexOperator("!", .unaryOperator(.not), .binaryOperator(.notEquals)) { return t }
+        if let t = lexOperator("!", .not, .binaryOperator(.notEquals)) { return t }
         if let t = lexOperator("<", .binaryOperator(.lessThan), .binaryOperator(.lessThanOrEqual)) { return t }
         if let t = lexOperator(">", .binaryOperator(.greaterThan), .binaryOperator(.greaterThanOrEqual)) { return t }
 
@@ -110,8 +114,8 @@ final class Lexer {
             case "("?: return .leftParenthesis
             case ")"?: return .rightParenthesis
             case ","?: return .comma
-            case "+"?: return .binaryOperator(.plus) // TODO: can be a unary operator too
-            case "-"?: return .binaryOperator(.minus) // TODO: can be a unary operator too
+            case "+"?: return .plus
+            case "-"?: return .minus
             case "*"?: return .binaryOperator(.multiplication)
             case "/"?: return .binaryOperator(.division)
             default: preconditionFailure()

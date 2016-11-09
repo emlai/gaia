@@ -52,9 +52,7 @@ public final class IRGenerator: ASTVisitor {
         switch `operator` {
             case .not: value = try buildLogicalNegation(of: operandValue)
             case .plus: value = operandValue
-            case .minus:
-                let zeroConstant = LLVMConstReal(LLVMDoubleTypeInContext(context), 0)
-                value = LLVMBuildFSub(builder, zeroConstant, operandValue, "subtmp")
+            case .minus: value = try buildNumericNegation(of: operandValue)
         }
         values.append(value)
     }
@@ -237,6 +235,14 @@ public final class IRGenerator: ASTVisitor {
 
     private func buildBoolToDouble(from boolean: LLVMValueRef) -> LLVMValueRef {
         return LLVMBuildUIToFP(builder, boolean, LLVMDoubleTypeInContext(context), "booltmp")
+    }
+
+    private func buildNumericNegation(of operand: LLVMValueRef) throws -> LLVMValueRef {
+        switch LLVMTypeOf(operand) {
+            case LLVMInt64TypeInContext(context): return LLVMBuildNeg(builder, operand, "negtmp")
+            case LLVMDoubleTypeInContext(context): return LLVMBuildFNeg(builder, operand, "negtmp")
+            default: fatalError("unknown type")
+        }
     }
 
     private func buildLogicalNegation(of operand: LLVMValueRef) throws -> LLVMValueRef {

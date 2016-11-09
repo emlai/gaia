@@ -142,7 +142,9 @@ public final class Parser {
 
         let unaryOperator: UnaryOperator
         switch token {
-            case .unaryOperator(let op)?: unaryOperator = op
+            case .not?: unaryOperator = .not
+            case .plus?: unaryOperator = .plus
+            case .minus?: unaryOperator = .minus
             default: throw ParseError.unexpectedToken("expected unary operator")
         }
         _ = nextToken()

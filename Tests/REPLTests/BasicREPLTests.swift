@@ -5,6 +5,7 @@ import Parse
 class BasicREPLTests: XCTestCase {
     func testIntegerLiteralExpression() {
         XCTAssert(replInput: "666\n777\n", producesOutput: "666\n777\n")
+        XCTAssert(replInput: "-666\n-777\n", producesOutput: "-666\n-777\n")
     }
 
     func testBooleanLiteralExpression() {
@@ -13,6 +14,7 @@ class BasicREPLTests: XCTestCase {
 
     func testFloatingPointLiteralExpression() {
         XCTAssert(replInput: "3.1415926536\n0.10\n", producesOutput: "3.1415926536\n0.1\n")
+        XCTAssert(replInput: "-3.1415926536\n-0.10\n", producesOutput: "-3.1415926536\n-0.1\n")
     }
 
     func testUnknownVariableExpression() {
