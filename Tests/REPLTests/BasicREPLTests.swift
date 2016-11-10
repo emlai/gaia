@@ -63,6 +63,13 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "if 0 then 666 else 777\n", producesOutput: "'if' condition requires a Bool expression\n")
     }
 
+    func testSimpleMultilineIfExpression() {
+        XCTAssert(replInput: "if true\n\t666\nelse\n\t777\n", producesOutput: "666\n")
+        XCTAssert(replInput: "if false\n\t666\nelse\n\t777\n", producesOutput: "777\n")
+        XCTAssert(replInput: "if false\n\t666\nelse\n\ttrue\n", producesOutput: "'then' and 'else' branches must have same type\n")
+        XCTAssert(replInput: "if 0\n\t666\nelse\n\t777\n", producesOutput: "'if' condition requires a Bool expression\n")
+    }
+
     func testSimpleFunctionDefinitionAndCall() {
         XCTAssert(replInput: "func foo() 666\nfoo()\nfoo()\n", producesOutput: "666\n666\n")
         XCTAssert(replInput: "func foo() 666 * 777\nfoo()\nfoo()\n", producesOutput: "517482\n517482\n")
@@ -87,6 +94,7 @@ class BasicREPLTests: XCTestCase {
         ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
         ("testNumericComparisonExpressions", testNumericComparisonExpressions),
         ("testSimpleIfExpression", testSimpleIfExpression),
+        ("testSimpleMultilineIfExpression", testSimpleMultilineIfExpression),
         ("testSimpleFunctionDefinitionAndCall", testSimpleFunctionDefinitionAndCall),
         ("testSimpleFunctionWithParameters", testSimpleFunctionWithParameters),
     ]

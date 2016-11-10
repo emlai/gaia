@@ -42,6 +42,7 @@ public enum Token: Equatable {
     public static func ==(lhs: Token, rhs: Token) -> Bool {
         switch (lhs, rhs) {
             case (.eof, .eof): return true
+            case (.newline, .newline): return true
             case (.identifier, .identifier): return true
             case (.integerLiteral, .integerLiteral): return true
             case (.leftParenthesis, .leftParenthesis): return true

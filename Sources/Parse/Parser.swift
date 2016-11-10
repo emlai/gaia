@@ -19,11 +19,15 @@ public final class Parser {
         return token
     }
 
-    private func expectToken(_ expected: Token, _ message: String? = nil) throws {
-        if token != expected {
+    private func expectToken(oneOf expected: Token..., _ message: String? = nil) throws {
+        if !expected.contains(token) {
             let message = message ?? "expected \(expected)"
             throw ParseError.unexpectedToken(message)
         }
+    }
+
+    private func expectToken(_ expected: Token, _ message: String? = nil) throws {
+        try expectToken(oneOf: expected)
     }
 
     func parseFunctionPrototype() throws -> FunctionPrototype {
@@ -185,11 +189,13 @@ public final class Parser {
     private func parseIf() throws -> Expression {
         _ = nextToken() // consume 'if'
         let condition = try parseExpression()
-        try expectToken(.keyword(.then))
-        _ = nextToken() // consume 'then'
+        try expectToken(oneOf: .keyword(.then), .newline)
+        _ = nextToken() // consume 'then' or newline
         let thenBranch = try parseExpression()
+        if token == .newline { _ = nextToken() } // consume optional newline
         try expectToken(.keyword(.else))
         _ = nextToken() // consume 'else'
+        if token == .newline { _ = nextToken() } // consume optional newline
         let elseBranch = try parseExpression()
         return .if(condition: condition, then: thenBranch, else: elseBranch)
     }
