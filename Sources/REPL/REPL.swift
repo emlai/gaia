@@ -57,7 +57,7 @@ public final class REPL {
 
     private func handleFunctionDefinition() throws {
         let function = try parser.parseFunctionDefinition()
-        let ir = try function.acceptVisitor(irGenerator)
+        _ = try function.acceptVisitor(irGenerator)
         GaiaJITAddModule(jit, &globalModule)
         initModuleAndFunctionPassManager()
     }
