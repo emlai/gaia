@@ -58,7 +58,6 @@ public final class REPL {
     private func handleFunctionDefinition() throws {
         let function = try parser.parseFunctionDefinition()
         let ir = try function.acceptVisitor(irGenerator)
-        LLVMDumpValue(ir)
         GaiaJITAddModule(jit, &globalModule)
         initModuleAndFunctionPassManager()
     }

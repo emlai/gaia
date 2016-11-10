@@ -63,6 +63,13 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "if 0 then 666 else 777\n", producesOutput: "'if' condition requires a Bool expression\n")
     }
 
+    func testSimpleFunctionDefinitionAndCall() {
+        XCTAssert(replInput: "func foo() 666\nfoo()\nfoo()\n", producesOutput: "666\n666\n")
+        XCTAssert(replInput: "func foo() 666 * 777\nfoo()\nfoo()\n", producesOutput: "517482\n517482\n")
+        XCTAssert(replInput: "func foo() if false then 666 else 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
+        XCTAssert(replInput: "func foo() 666\nfunc foo() 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -74,6 +81,7 @@ class BasicREPLTests: XCTestCase {
         ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
         ("testNumericComparisonExpressions", testNumericComparisonExpressions),
         ("testSimpleIfExpression", testSimpleIfExpression),
+        ("testSimpleFunctionDefinitionAndCall", testSimpleFunctionDefinitionAndCall),
     ]
 }
 
