@@ -27,7 +27,7 @@ public final class FunctionPrototype: ASTNode {
 }
 
 public final class Parameter {
-    let name: String
+    public let name: String
 
     public init(name: String) {
         self.name = name

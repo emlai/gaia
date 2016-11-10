@@ -159,8 +159,11 @@ public final class IRGenerator: ASTVisitor {
         let functionType = LLVMFunctionType(returnType, &parameterTypes,
                                             UInt32(parameterTypes.count), LLVMFalse)
         let function = LLVMAddFunction(module, prototype.name, functionType)
+        let parameterValues = LLVMGetParams(function!)
 
-        // TODO: parameter names
+        for (parameter, name) in zip(parameterValues, prototype.parameters.map { $0.name }) {
+            LLVMSetValueName(parameter, name)
+        }
 
         return function!
     }
@@ -182,7 +185,11 @@ public final class IRGenerator: ASTVisitor {
     }
 
     private func createParameterAllocas(_ prototype: FunctionPrototype, _ function: LLVMValueRef) {
-        // TODO
+        for (parameter, parameterValue) in zip(prototype.parameters, LLVMGetParams(function)) {
+            let alloca = createEntryBlockAlloca(for: function, variableName: parameter.name)
+            LLVMBuildStore(builder, parameterValue, alloca)
+            namedValues[parameter.name] = alloca
+        }
     }
 
     private func initFunction(astFunction: Function, prototype: FunctionPrototype) throws
@@ -264,4 +271,20 @@ public final class IRGenerator: ASTVisitor {
         fatalError("unimplemented")
         // TODO
     }
+
+    private func createEntryBlockAlloca(for function: LLVMValueRef, variableName: String) -> LLVMValueRef {
+        let temporaryBuilder = LLVMCreateBuilder()
+        let entryBlock = LLVMGetEntryBasicBlock(function)
+        let entryBlockFirstInstruction = LLVMGetFirstInstruction(entryBlock)
+        LLVMPositionBuilder(temporaryBuilder, entryBlock, entryBlockFirstInstruction)
+        let variableType = LLVMDoubleTypeInContext(context) // TODO: Allow other variable types.
+        return LLVMBuildAlloca(temporaryBuilder, variableType, variableName)
+    }
+}
+
+/// Convenience wrapper around `LLVMGetParams` that returns the parameter array.
+private func LLVMGetParams(_ function: LLVMValueRef) -> [LLVMValueRef] {
+    var parameters = ContiguousArray<LLVMValueRef?>(repeating: nil, count: Int(LLVMCountParams(function)))
+    parameters.withUnsafeMutableBufferPointer { LLVMGetParams(function, $0.baseAddress) }
+    return parameters.map { $0! }
 }
