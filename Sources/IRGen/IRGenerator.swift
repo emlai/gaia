@@ -16,16 +16,17 @@ public final class IRGenerator: ASTVisitor {
     private let context: LLVMContextRef
     private let builder: LLVMBuilderRef
     private var namedValues: [String: LLVMValueRef]
-    private var functionPrototypes: [String: FunctionPrototype]
+    private var functionDefinitions: [String: Function]
     private var returnType: LLVMTypeRef?
     public var functionPassManager: LLVMPassManagerRef?
     public var module: LLVMModuleRef?
+    public var argumentTypes: [LLVMTypeRef]? // Used to pass function arguments to visitor functions.
 
     public init(context: LLVMContextRef) {
         self.context = context
         builder = LLVMCreateBuilderInContext(context)
         namedValues = [:]
-        functionPrototypes = [:]
+        functionDefinitions = [:]
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
@@ -70,12 +71,13 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws -> LLVMValueRef {
-        guard let function = try? lookupFunction(named: functionName) else {
+        guard let astFunction = functionDefinitions[functionName] else {
             throw IRGenError.unknownIdentifier(message: "unknown function name '\(functionName)'")
         }
 
-        if Int(LLVMCountParams(function)) != arguments.count {
-            throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(LLVMCountParams(function))")
+        let parameterCount = astFunction.prototype.parameters.count
+        if parameterCount != arguments.count {
+            throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
         }
 
         var argumentValues = [LLVMValueRef?]()
@@ -83,7 +85,12 @@ public final class IRGenerator: ASTVisitor {
         for argument in arguments {
             argumentValues.append(try argument.acceptVisitor(self))
         }
-        return LLVMBuildCall(builder, function, &argumentValues, UInt32(argumentValues.count), "calltmp")
+
+        let insertBlockBackup = LLVMGetInsertBlock(builder)
+        self.argumentTypes = argumentValues.map { LLVMTypeOf($0) }
+        let callee = try astFunction.acceptVisitor(self)
+        LLVMPositionBuilderAtEnd(builder, insertBlockBackup)
+        return LLVMBuildCall(builder, callee, &argumentValues, UInt32(argumentValues.count), "calltmp")
     }
 
     public func visitIntegerLiteralExpression(value: Int64) -> LLVMValueRef {
@@ -138,14 +145,13 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visitFunction(_ astFunction: Function) throws -> LLVMValueRef {
-        let prototype = astFunction.prototype
-        functionPrototypes[prototype.name] = astFunction.prototype
-        var (llvmFunction, value) = try initFunction(astFunction: astFunction, prototype: prototype)
+        let argumentTypes = self.argumentTypes!
+        var (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
         returnType = LLVMTypeOf(value)
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
-        (llvmFunction, value) = try initFunction(astFunction: astFunction, prototype: prototype)
+        (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
 
         LLVMBuildRet(builder, value)
         LLVMVerifyFunction(llvmFunction, LLVMAbortProcessAction)
@@ -154,8 +160,7 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visitFunctionPrototype(_ prototype: FunctionPrototype) -> LLVMValueRef {
-        var parameterTypes = [LLVMTypeRef?](repeating: LLVMDoubleTypeInContext(context),
-                                           count: prototype.parameters.count)
+        var parameterTypes = argumentTypes!.map { Optional.some($0) }
         let functionType = LLVMFunctionType(returnType, &parameterTypes,
                                             UInt32(parameterTypes.count), LLVMFalse)
         let function = LLVMAddFunction(module, prototype.name, functionType)
@@ -168,15 +173,20 @@ public final class IRGenerator: ASTVisitor {
         return function!
     }
 
+    public func registerFunctionDefinition(_ function: Function) {
+        functionDefinitions[function.prototype.name] = function
+    }
+
     /// Searches `module` for an existing function declaration with the given name,
-    /// or, if it doesn't find one, generates a new one from `functionPrototypes`.
-    func lookupFunction(named functionName: String) throws -> LLVMValueRef? {
+    /// or, if it doesn't find one, generates a new one from `functionDefinitions`.
+    func lookupFunction(named functionName: String, argumentTypes: [LLVMTypeRef]) throws -> LLVMValueRef? {
         // First, see if the function has already been added to the current module.
         if let function = LLVMGetNamedFunction(module, functionName) { return function }
 
         // If not, check whether we can codegen the declaration from some existing prototype.
-        if let functionPrototype = functionPrototypes[functionName] {
-            let function = try functionPrototype.acceptVisitor(self)
+        if let astFunction = functionDefinitions[functionName] {
+            self.argumentTypes = argumentTypes
+            let function = try astFunction.prototype.acceptVisitor(self)
             assert(LLVMGetValueKind(function) == LLVMFunctionValueKind)
             return function
         }
@@ -186,19 +196,19 @@ public final class IRGenerator: ASTVisitor {
 
     private func createParameterAllocas(_ prototype: FunctionPrototype, _ function: LLVMValueRef) {
         for (parameter, parameterValue) in zip(prototype.parameters, LLVMGetParams(function)) {
-            let alloca = createEntryBlockAlloca(for: function, variableName: parameter.name)
+            let alloca = createEntryBlockAlloca(for: function, name: parameter.name, type: LLVMTypeOf(parameterValue))
             LLVMBuildStore(builder, parameterValue, alloca)
             namedValues[parameter.name] = alloca
         }
     }
 
-    private func initFunction(astFunction: Function, prototype: FunctionPrototype) throws
+    private func buildFunctionBody(astFunction: Function, argumentTypes: [LLVMTypeRef]) throws
         -> (function: LLVMValueRef, body: LLVMValueRef) {
-        let llvmFunction = try lookupFunction(named: prototype.name)!
+        let llvmFunction = try lookupFunction(named: astFunction.prototype.name, argumentTypes: argumentTypes)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
         LLVMPositionBuilderAtEnd(builder, basicBlock)
         namedValues.removeAll(keepingCapacity: true)
-        createParameterAllocas(prototype, llvmFunction)
+        createParameterAllocas(astFunction.prototype, llvmFunction)
         do {
             let body = try astFunction.body.acceptVisitor(self)
             return (llvmFunction, body)
@@ -272,13 +282,12 @@ public final class IRGenerator: ASTVisitor {
         // TODO
     }
 
-    private func createEntryBlockAlloca(for function: LLVMValueRef, variableName: String) -> LLVMValueRef {
+    private func createEntryBlockAlloca(for function: LLVMValueRef, name: String, type: LLVMTypeRef) -> LLVMValueRef {
         let temporaryBuilder = LLVMCreateBuilder()
         let entryBlock = LLVMGetEntryBasicBlock(function)
         let entryBlockFirstInstruction = LLVMGetFirstInstruction(entryBlock)
         LLVMPositionBuilder(temporaryBuilder, entryBlock, entryBlockFirstInstruction)
-        let variableType = LLVMDoubleTypeInContext(context) // TODO: Allow other variable types.
-        return LLVMBuildAlloca(temporaryBuilder, variableType, variableName)
+        return LLVMBuildAlloca(temporaryBuilder, type, name)
     }
 }
 

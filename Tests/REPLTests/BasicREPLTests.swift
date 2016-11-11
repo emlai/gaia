@@ -83,6 +83,12 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "func foo(a,b,c) a+b-c\nfoo(1.0,2.0,3.0)\nfoo(-2.0,-1.0,-0.0)\n", producesOutput: "0.0\n-3.0\n")
     }
 
+    func testSimpleFunctionWithParametersOfVariousTypes() {
+        XCTAssert(replInput: "func foo(a) -a\nfoo(1.0)\nfoo(1)\n", producesOutput: "-1.0\n-1\n")
+        XCTAssert(replInput: "func foo(a, b) a / b\nfoo(1.0, 0.5)\nfoo(2, 2)\n", producesOutput: "2.0\n1\n")
+        XCTAssert(replInput: "func foo(a,b,c) (a==b)!=c\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n", producesOutput: "false\nfalse\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -97,6 +103,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleMultilineIfExpression", testSimpleMultilineIfExpression),
         ("testSimpleFunctionDefinitionAndCall", testSimpleFunctionDefinitionAndCall),
         ("testSimpleFunctionWithParameters", testSimpleFunctionWithParameters),
+        ("testSimpleFunctionWithParametersOfVariousTypes", testSimpleFunctionWithParametersOfVariousTypes),
     ]
 }
 

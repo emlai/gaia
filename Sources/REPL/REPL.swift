@@ -57,14 +57,14 @@ public final class REPL {
 
     private func handleFunctionDefinition() throws {
         let function = try parser.parseFunctionDefinition()
-        _ = try function.acceptVisitor(irGenerator)
-        GaiaJITAddModule(jit, &globalModule)
-        initModuleAndFunctionPassManager()
+        irGenerator.registerFunctionDefinition(function)
     }
 
     private func handleToplevelExpression() throws {
         // Evaluate a top-level expression into an anonymous function.
         let function = try parser.parseToplevelExpression()
+        irGenerator.registerFunctionDefinition(function)
+        irGenerator.argumentTypes = []
         let ir = try function.acceptVisitor(irGenerator)
 
         // Get the type of the expression.
