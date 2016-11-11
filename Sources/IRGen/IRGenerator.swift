@@ -154,7 +154,7 @@ public final class IRGenerator: ASTVisitor {
         (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
 
         LLVMBuildRet(builder, value)
-        LLVMVerifyFunction(llvmFunction, LLVMAbortProcessAction)
+        precondition(LLVMVerifyFunction(llvmFunction, LLVMPrintMessageAction) != 1)
         LLVMRunFunctionPassManager(functionPassManager, llvmFunction)
         return llvmFunction
     }
