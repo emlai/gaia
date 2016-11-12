@@ -1,4 +1,4 @@
 import Driver
 
 let driver = Driver()
-driver.run(inputFiles: CommandLine.arguments.dropFirst())
+driver.compile(inputFiles: CommandLine.arguments.dropFirst())

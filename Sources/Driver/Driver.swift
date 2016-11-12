@@ -34,7 +34,30 @@ public final class Driver {
                                                 LLVMCodeModelDefault)
     }
 
-    public func run(inputFiles: ArraySlice<String>) {
+    /// Returns the exit status of the executed program on successful completion,
+    /// or `nil` if the compiled program was not executed.
+    public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
+        compile(file: inputFile)
+
+        let linkProcess = Process()
+        linkProcess.launchPath = "/usr/bin/env"
+        linkProcess.arguments = ["cc", inputFile + ".o", "-o", inputFile + ".out"]
+        linkProcess.launch()
+        linkProcess.waitUntilExit()
+        if linkProcess.terminationStatus != 0 { return nil }
+        try FileManager.default.removeItem(atPath: inputFile + ".o")
+
+        let executeProcess = Process()
+        executeProcess.launchPath = inputFile + ".out"
+        if stdoutPipe != nil { executeProcess.standardOutput = stdoutPipe }
+        executeProcess.launch()
+        executeProcess.waitUntilExit()
+        try FileManager.default.removeItem(atPath: inputFile + ".out")
+
+        return executeProcess.terminationStatus
+    }
+
+    public func compile(inputFiles: ArraySlice<String>) {
         if inputFiles.isEmpty {
             print("error: no input files")
             exit(1)

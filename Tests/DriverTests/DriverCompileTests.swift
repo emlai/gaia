@@ -6,77 +6,34 @@ class DriverCompileTests: XCTestCase {
         let program = "func foo(a, b) (a + b) / 2\n\nfoo(6, 8)\n"
         try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
         let driver = Driver()
-        driver.run(inputFiles: ["main.gaia"])
-        XCTAssert(FileManager.default.fileExists(atPath: "main.gaia.o"))
-        try FileManager.default.removeItem(atPath: "main.gaia")
+        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        let linkProcess = Process()
-        linkProcess.launchPath = "/usr/bin/env"
-        linkProcess.arguments = ["cc", "main.gaia.o"]
-        linkProcess.launch()
-        linkProcess.waitUntilExit()
-        XCTAssertEqual(linkProcess.terminationStatus, 0)
-        try FileManager.default.removeItem(atPath: "main.gaia.o")
-
-        let runProcess = Process()
-        runProcess.launchPath = "a.out"
-        runProcess.launch()
-        runProcess.waitUntilExit()
-        XCTAssertEqual(runProcess.terminationStatus, 7)
-        try FileManager.default.removeItem(atPath: "a.out")
+        XCTAssertEqual(exitStatus, 7)
+        XCTAssert(FileManager.default.fileExists(atPath: "main.gaia"))
+        for file in ["main.gaia.o", "main.gaia.out", "main", "a.out"] {
+            XCTAssert(!FileManager.default.fileExists(atPath: file))
+        }
     }
 
     func testExternAndMultipleStatementsInMainFunction() throws {
         let program = "extern func putchar(ch)\n\nputchar(71)\nputchar(97)\nputchar(105)\nputchar(97)\n0"
         try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
         let driver = Driver()
-        driver.run(inputFiles: ["main.gaia"])
-        XCTAssert(FileManager.default.fileExists(atPath: "main.gaia.o"))
-        try FileManager.default.removeItem(atPath: "main.gaia")
-
-        let linkProcess = Process()
-        linkProcess.launchPath = "/usr/bin/env"
-        linkProcess.arguments = ["cc", "main.gaia.o"]
-        linkProcess.launch()
-        linkProcess.waitUntilExit()
-        XCTAssertEqual(linkProcess.terminationStatus, 0)
-        try FileManager.default.removeItem(atPath: "main.gaia.o")
-
         let stdoutPipe = Pipe()
-        let runProcess = Process()
-        runProcess.launchPath = "a.out"
-        runProcess.standardOutput = stdoutPipe
-        runProcess.launch()
-        runProcess.waitUntilExit()
-        XCTAssertEqual(runProcess.terminationStatus, 0)
-        try FileManager.default.removeItem(atPath: "a.out")
+        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
 
         let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
         XCTAssertEqual(output, "Gaia")
+        XCTAssertEqual(exitStatus, 0)
     }
 
     func testCompilationOfMultipleCallsToNonExternFunction() throws {
         let program = "func foo(x) 1\nfoo(0)\nfoo(0)\n"
         try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
         let driver = Driver()
-        driver.run(inputFiles: ["main.gaia"])
-        XCTAssert(FileManager.default.fileExists(atPath: "main.gaia.o"))
-        try FileManager.default.removeItem(atPath: "main.gaia")
+        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        let linkProcess = Process()
-        linkProcess.launchPath = "/usr/bin/env"
-        linkProcess.arguments = ["cc", "main.gaia.o"]
-        linkProcess.launch()
-        linkProcess.waitUntilExit()
-        XCTAssertEqual(linkProcess.terminationStatus, 0)
-        try FileManager.default.removeItem(atPath: "main.gaia.o")
-
-        let runProcess = Process()
-        runProcess.launchPath = "a.out"
-        runProcess.launch()
-        runProcess.waitUntilExit()
-        XCTAssertEqual(runProcess.terminationStatus, 1)
-        try FileManager.default.removeItem(atPath: "a.out")
+        XCTAssertEqual(exitStatus, 1)
     }
 
     static var allTests = [
