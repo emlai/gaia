@@ -8,6 +8,7 @@ import JIT
 
 public final class REPL {
     private var outputStream: TextOutputStream
+    private var infoOutputStream: TextOutputStream
     private let parser: Parser
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
@@ -15,7 +16,8 @@ public final class REPL {
     private var executionEngine: LLVMExecutionEngineRef?
     private let jit: GaiaJITRef
 
-    public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout()) {
+    public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
+                infoOutputStream: TextOutputStream = Stdout()) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
@@ -23,6 +25,7 @@ public final class REPL {
         jit = GaiaCreateJIT()
 
         self.outputStream = outputStream
+        self.infoOutputStream = infoOutputStream
         parser = Parser(readingFrom: inputStream)
         astPrinter = ASTPrinter(printingTo: outputStream)
         irGenerator = IRGenerator(context: LLVMGetGlobalContext())
@@ -36,7 +39,7 @@ public final class REPL {
     public func run() {
         var count = 0
         while true {
-            print("\(count)> ", terminator: "")
+            infoOutputStream.write("\(count)> ")
             do {
                 switch parser.nextToken() {
                     case .eof: return

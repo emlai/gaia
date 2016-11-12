@@ -94,7 +94,7 @@ class BasicREPLTests: XCTestCase {
         stdoutBuffer.withUnsafeMutableBufferPointer {
             setbuf(stdout, $0.baseAddress)
             XCTAssert(replInput: "extern func putchar(ch)\nputchar(64)\nputchar(65)\n", producesOutput: "\n\n")
-            XCTAssertEqual(String(cString: $0.baseAddress!), "0> 1> @2> A3> ")
+            XCTAssertEqual(String(cString: $0.baseAddress!), "@A")
             setbuf(stdout, nil)
         }
     }
@@ -121,7 +121,7 @@ class BasicREPLTests: XCTestCase {
 private func XCTAssert(replInput input: String, producesOutput expectedOutput: String) {
     let input = MockStdin(content: input)
     let output = MockStdout(expected: expectedOutput)
-    REPL(inputStream: input, outputStream: output).run()
+    REPL(inputStream: input, outputStream: output, infoOutputStream: NullTextOutputStream()).run()
     XCTAssert(output.expected.isEmpty, "expected \"\(output.expected.escaped)\", got end of output")
 }
 
@@ -162,6 +162,10 @@ class MockStdout: TextOutputStream {
             XCTFail("expected \"\(expected.escaped)\", got \"\(string.escaped)\"")
         }
     }
+}
+
+class NullTextOutputStream: TextOutputStream {
+    public func write(_ string: String) { /* ignore */ }
 }
 
 extension String {
