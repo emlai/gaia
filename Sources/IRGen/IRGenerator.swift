@@ -316,6 +316,23 @@ public final class IRGenerator: ASTVisitor {
         LLVMPositionBuilder(temporaryBuilder, entryBlock, entryBlockFirstInstruction)
         return LLVMBuildAlloca(temporaryBuilder, type, name)
     }
+
+    public func appendToMainFunction(_ expression: Expression) throws {
+        var mainFunction = LLVMGetNamedFunction(module, "main")
+
+        // Create main function if it doesn't exist.
+        if mainFunction == nil {
+            let mainFunctionType = LLVMFunctionType(LLVMInt32Type(), nil, 0, LLVMFalse)
+            mainFunction = LLVMAddFunction(module, "main", mainFunctionType)
+            LLVMAppendBasicBlock(mainFunction, "entry")
+        }
+
+        if let returnInstruction = LLVMGetLastInstruction(LLVMGetLastBasicBlock(mainFunction)) {
+            LLVMInstructionEraseFromParent(returnInstruction)
+        }
+        LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(mainFunction))
+        LLVMBuildRet(builder, try expression.acceptVisitor(self))
+    }
 }
 
 /// Convenience wrapper around `LLVMGetParams` that returns the parameter array.

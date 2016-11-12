@@ -66,6 +66,7 @@ public final class Driver {
                     case .eof: return
                     case .newline: break
                     case .keyword(.func): try handleFunctionDefinition()
+                    case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
             } catch IRGenError.unknownIdentifier(let message) {
@@ -96,14 +97,15 @@ public final class Driver {
         irGenerator.registerFunctionDefinition(function)
     }
 
+    private func handleExternFunctionDeclaration() throws {
+        let prototype = try parser!.parseExternFunctionDeclaration()
+        irGenerator.registerExternFunctionDeclaration(prototype)
+    }
+
     private func handleToplevelExpression() throws {
         // Add top-level expressions into main function.
         let expression = try parser!.parseExpression()
-        let prototype = FunctionPrototype(name: "main", parameters: [])
-        let function = Function(prototype: prototype, body: expression)
-        irGenerator.registerFunctionDefinition(function)
-        irGenerator.argumentTypes = []
-        _ = try function.acceptVisitor(irGenerator)
+        try irGenerator.appendToMainFunction(expression)
     }
 
     private func initModuleAndFunctionPassManager(moduleName: String) {
