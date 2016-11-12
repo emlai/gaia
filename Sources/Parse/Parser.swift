@@ -57,13 +57,6 @@ public final class Parser {
         return Function(prototype: prototype, body: body)
     }
 
-    public func parseToplevelExpression() throws -> Function {
-        let expression = try parseExpression()
-        // Make an anonymous function.
-        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [])
-        return Function(prototype: prototype, body: expression)
-    }
-
     private func parseIntegerLiteral() -> Expression {
         guard case .integerLiteral(let value)? = token else { fatalError() }
         let e = Expression.integerLiteral(value: value)
@@ -135,7 +128,7 @@ public final class Parser {
         }
     }
 
-    private func parseExpression() throws -> Expression {
+    public func parseExpression() throws -> Expression {
         return try parseBinOpRHS(precedence: 0, lhs: try parseUnaryExpression())
     }
 

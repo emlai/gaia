@@ -37,3 +37,22 @@ public final class Stdin: TextInputStream {
         eof = character == nil
     }
 }
+
+public final class SourceFile: TextInputStream {
+    private var buffer: String
+
+    public init(atPath path: String) throws {
+        buffer = try String(contentsOfFile: path)
+    }
+
+    public func read() -> UnicodeScalar? {
+        if buffer.isEmpty { return nil }
+        return buffer.unicodeScalars.popFirst()
+    }
+
+    public func unread(_ character: UnicodeScalar?) {
+        if let c = character {
+            buffer.unicodeScalars.insert(c, at: buffer.unicodeScalars.startIndex)
+        }
+    }
+}
