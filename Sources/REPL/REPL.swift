@@ -42,6 +42,7 @@ public final class REPL {
                     case .eof: return
                     case .newline: break
                     case .keyword(.func): try handleFunctionDefinition()
+                    case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
             } catch IRGenError.unknownIdentifier(let message) {
@@ -58,6 +59,11 @@ public final class REPL {
     private func handleFunctionDefinition() throws {
         let function = try parser.parseFunctionDefinition()
         irGenerator.registerFunctionDefinition(function)
+    }
+
+    private func handleExternFunctionDeclaration() throws {
+        let prototype = try parser.parseExternFunctionDeclaration()
+        irGenerator.registerExternFunctionDeclaration(prototype)
     }
 
     private func handleToplevelExpression() throws {
@@ -89,12 +95,14 @@ public final class REPL {
         GaiaJITRemoveModule(jit, moduleHandle)
     }
 
+    typealias VoidFunction = @convention(c) () -> Void
     typealias BoolFunction = @convention(c) () -> CBool
     typealias Int64Function = @convention(c) () -> Int64
     typealias DoubleFunction = @convention(c) () -> Double
 
     private func evaluate(_ function: UnsafeRawPointer, type: LLVMTypeRef) -> String {
         switch type {
+            case LLVMVoidType(): unsafeBitCast(function, to: VoidFunction.self)(); return ""
             case LLVMInt1Type(): return String(unsafeBitCast(function, to: BoolFunction.self)())
             case LLVMInt64Type(): return String(unsafeBitCast(function, to: Int64Function.self)())
             case LLVMDoubleType(): return String(unsafeBitCast(function, to: DoubleFunction.self)())

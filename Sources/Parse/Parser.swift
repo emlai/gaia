@@ -31,6 +31,8 @@ public final class Parser {
     }
 
     func parseFunctionPrototype() throws -> FunctionPrototype {
+        _ = nextToken() // consume 'func'
+
         guard case .identifier(let functionName)? = token else {
             throw ParseError.unexpectedToken("expected function name in prototype")
         }
@@ -51,10 +53,14 @@ public final class Parser {
     }
 
     public func parseFunctionDefinition() throws -> Function {
-        _ = nextToken()
         let prototype = try parseFunctionPrototype()
         let body = try parseExpression()
         return Function(prototype: prototype, body: body)
+    }
+
+    public func parseExternFunctionDeclaration() throws -> FunctionPrototype {
+        _ = nextToken() // consume 'extern'
+        return try parseFunctionPrototype()
     }
 
     private func parseIntegerLiteral() -> Expression {

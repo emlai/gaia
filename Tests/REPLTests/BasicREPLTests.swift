@@ -89,6 +89,16 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "func foo(a,b,c) (a==b)!=c\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n", producesOutput: "false\nfalse\n")
     }
 
+    func testExternCFunctionWithoutReturnValue() {
+        var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
+        stdoutBuffer.withUnsafeMutableBufferPointer {
+            setbuf(stdout, $0.baseAddress)
+            XCTAssert(replInput: "extern func putchar(ch)\nputchar(64)\nputchar(65)\n", producesOutput: "\n\n")
+            XCTAssertEqual(String(cString: $0.baseAddress!), "0> 1> @2> A3> ")
+            setbuf(stdout, nil)
+        }
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -104,6 +114,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleFunctionDefinitionAndCall", testSimpleFunctionDefinitionAndCall),
         ("testSimpleFunctionWithParameters", testSimpleFunctionWithParameters),
         ("testSimpleFunctionWithParametersOfVariousTypes", testSimpleFunctionWithParametersOfVariousTypes),
+        ("testExternCFunctionWithoutReturnValue", testExternCFunctionWithoutReturnValue),
     ]
 }
 
@@ -144,6 +155,7 @@ class MockStdout: TextOutputStream {
     }
 
     public func write(_ string: String) {
+        if string.isEmpty { return }
         if expected.hasPrefix(string) {
             expected.removeSubrange(expected.range(of: string)!)
         } else {

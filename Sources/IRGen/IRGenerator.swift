@@ -17,6 +17,7 @@ public final class IRGenerator: ASTVisitor {
     private let builder: LLVMBuilderRef
     private var namedValues: [String: LLVMValueRef]
     private var functionDefinitions: [String: Function]
+    private var externFunctionPrototypes: [String: FunctionPrototype]
     private var returnType: LLVMTypeRef?
     public var functionPassManager: LLVMPassManagerRef?
     public var module: LLVMModuleRef?
@@ -27,6 +28,7 @@ public final class IRGenerator: ASTVisitor {
         builder = LLVMCreateBuilderInContext(context)
         namedValues = [:]
         functionDefinitions = [:]
+        externFunctionPrototypes = [:]
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
@@ -71,11 +73,19 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws -> LLVMValueRef {
-        guard let astFunction = functionDefinitions[functionName] else {
+        let prototype: FunctionPrototype
+        let nonExternFunction: Function?
+        if let externPrototype = externFunctionPrototypes[functionName] {
+            prototype = externPrototype
+            nonExternFunction = nil
+        } else if let function = functionDefinitions[functionName] {
+            prototype = function.prototype
+            nonExternFunction = function
+        } else {
             throw IRGenError.unknownIdentifier(message: "unknown function name '\(functionName)'")
         }
 
-        let parameterCount = astFunction.prototype.parameters.count
+        let parameterCount = prototype.parameters.count
         if parameterCount != arguments.count {
             throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
         }
@@ -88,9 +98,18 @@ public final class IRGenerator: ASTVisitor {
 
         let insertBlockBackup = LLVMGetInsertBlock(builder)
         self.argumentTypes = argumentValues.map { LLVMTypeOf($0) }
-        let callee = try astFunction.acceptVisitor(self)
+
+        let callee: LLVMValueRef
+        if let function = nonExternFunction {
+            callee = try function.acceptVisitor(self)
+        } else {
+            self.returnType = LLVMVoidType() // TODO: Support non-void extern functions.
+            callee = try LLVMGetNamedFunction(module, functionName) ?? prototype.acceptVisitor(self)
+        }
+
+        let name = callee.returnType != LLVMVoidType() ? "calltmp" : ""
         LLVMPositionBuilderAtEnd(builder, insertBlockBackup)
-        return LLVMBuildCall(builder, callee, &argumentValues, UInt32(argumentValues.count), "calltmp")
+        return LLVMBuildCall(builder, callee, &argumentValues, UInt32(argumentValues.count), name)
     }
 
     public func visitIntegerLiteralExpression(value: Int64) -> LLVMValueRef {
@@ -153,7 +172,11 @@ public final class IRGenerator: ASTVisitor {
         LLVMDeleteFunction(llvmFunction)
         (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
 
-        LLVMBuildRet(builder, value)
+        if LLVMTypeOf(value) == LLVMVoidType() {
+            LLVMBuildRetVoid(builder)
+        } else {
+            LLVMBuildRet(builder, value)
+        }
         precondition(LLVMVerifyFunction(llvmFunction, LLVMPrintMessageAction) != 1)
         LLVMRunFunctionPassManager(functionPassManager, llvmFunction)
         return llvmFunction
@@ -175,6 +198,10 @@ public final class IRGenerator: ASTVisitor {
 
     public func registerFunctionDefinition(_ function: Function) {
         functionDefinitions[function.prototype.name] = function
+    }
+
+    public func registerExternFunctionDeclaration(_ prototype: FunctionPrototype) {
+        externFunctionPrototypes[prototype.name] = prototype
     }
 
     /// Searches `module` for an existing function declaration with the given name,
@@ -296,4 +323,10 @@ private func LLVMGetParams(_ function: LLVMValueRef) -> [LLVMValueRef] {
     var parameters = ContiguousArray<LLVMValueRef?>(repeating: nil, count: Int(LLVMCountParams(function)))
     parameters.withUnsafeMutableBufferPointer { LLVMGetParams(function, $0.baseAddress) }
     return parameters.map { $0! }
+}
+
+extension LLVMValueRef {
+    var returnType: LLVMTypeRef {
+        return LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(self)))
+    }
 }
