@@ -64,7 +64,7 @@ public final class ASTPrinter: ASTVisitor {
 
     public func visitFunction(_ function: Function) throws {
         try function.prototype.acceptVisitor(self)
-        try function.body.acceptVisitor(self)
+        try function.body.forEach { try $0.acceptVisitor(self) }
     }
 
     public func visitFunctionPrototype(_: FunctionPrototype) throws {

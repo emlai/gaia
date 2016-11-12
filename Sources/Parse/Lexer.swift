@@ -3,6 +3,7 @@ import AST
 
 public enum Keyword: String {
     case `func`
+    case end
     case extern
     case `if`
     case `then`

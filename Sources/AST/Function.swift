@@ -1,8 +1,8 @@
 public final class Function: ASTNode {
     public let prototype: FunctionPrototype
-    public let body: Expression
+    public let body: [Expression]
 
-    public init(prototype: FunctionPrototype, body: Expression) {
+    public init(prototype: FunctionPrototype, body: [Expression]) {
         self.prototype = prototype
         self.body = body
     }

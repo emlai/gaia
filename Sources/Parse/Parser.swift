@@ -54,7 +54,18 @@ public final class Parser {
 
     public func parseFunctionDefinition() throws -> Function {
         let prototype = try parseFunctionPrototype()
-        let body = try parseExpression()
+        var body = [Expression]()
+
+        if token == .newline {
+            // Multi-line function
+            while nextToken() != .keyword(.end) {
+                body.append(try parseExpression())
+            }
+        } else {
+            // One-line function
+            body.append(try parseExpression())
+        }
+
         return Function(prototype: prototype, body: body)
     }
 

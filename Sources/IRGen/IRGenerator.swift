@@ -179,17 +179,17 @@ public final class IRGenerator: ASTVisitor {
 
     public func visitFunction(_ astFunction: Function) throws -> LLVMValueRef {
         let argumentTypes = self.argumentTypes!
-        var (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
-        returnType = LLVMTypeOf(value)
+        var (llvmFunction, body) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
+        returnType = LLVMTypeOf(body.last!)
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
-        (llvmFunction, value) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
+        (llvmFunction, body) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
 
-        if LLVMTypeOf(value) == LLVMVoidType() {
+        if LLVMTypeOf(body.last!) == LLVMVoidType() {
             LLVMBuildRetVoid(builder)
         } else {
-            LLVMBuildRet(builder, value)
+            LLVMBuildRet(builder, body.last!)
         }
         precondition(LLVMVerifyFunction(llvmFunction, LLVMPrintMessageAction) != 1)
         LLVMRunFunctionPassManager(functionPassManager, llvmFunction)
@@ -244,14 +244,14 @@ public final class IRGenerator: ASTVisitor {
     }
 
     private func buildFunctionBody(astFunction: Function, argumentTypes: [LLVMTypeRef]) throws
-        -> (function: LLVMValueRef, body: LLVMValueRef) {
+        -> (function: LLVMValueRef, body: [LLVMValueRef]) {
         let llvmFunction = try lookupFunction(named: astFunction.prototype.name, argumentTypes: argumentTypes)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
         LLVMPositionBuilderAtEnd(builder, basicBlock)
         namedValues.removeAll(keepingCapacity: true)
         createParameterAllocas(astFunction.prototype, llvmFunction)
         do {
-            let body = try astFunction.body.acceptVisitor(self)
+            let body = try astFunction.body.map { try $0.acceptVisitor(self) }
             return (llvmFunction, body)
         } catch {
             // Error reading body, remove function.
