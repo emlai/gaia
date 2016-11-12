@@ -101,7 +101,7 @@ public final class IRGenerator: ASTVisitor {
 
         let callee: LLVMValueRef
         if let function = nonExternFunction {
-            callee = try function.acceptVisitor(self)
+            callee = try getInstantiation(of: function, for: argumentTypes!)
         } else {
             self.returnType = LLVMVoidType() // TODO: Support non-void extern functions.
             callee = try LLVMGetNamedFunction(module, functionName) ?? prototype.acceptVisitor(self)
@@ -110,6 +110,20 @@ public final class IRGenerator: ASTVisitor {
         let name = callee.returnType != LLVMVoidType() ? "calltmp" : ""
         LLVMPositionBuilderAtEnd(builder, insertBlockBackup)
         return LLVMBuildCall(builder, callee, &argumentValues, UInt32(argumentValues.count), name)
+    }
+
+    /// Returns an instantiation of the given function for the given parameter types,
+    /// building a new concrete function if it has not yet been instantiated.
+    private func getInstantiation(of function: Function, for parameterTypes: [LLVMTypeRef]) throws -> LLVMValueRef {
+        if let generated = LLVMGetNamedFunction(module, function.prototype.name) {
+            if LLVMGetParamTypes(LLVMGetElementType(LLVMTypeOf(generated))) == parameterTypes {
+                return generated
+            }
+        }
+
+        // Instantiate the function with the given parameter types.
+        self.argumentTypes = parameterTypes
+        return try function.acceptVisitor(self)
     }
 
     public func visitIntegerLiteralExpression(value: Int64) -> LLVMValueRef {
@@ -339,6 +353,13 @@ public final class IRGenerator: ASTVisitor {
 private func LLVMGetParams(_ function: LLVMValueRef) -> [LLVMValueRef] {
     var parameters = ContiguousArray<LLVMValueRef?>(repeating: nil, count: Int(LLVMCountParams(function)))
     parameters.withUnsafeMutableBufferPointer { LLVMGetParams(function, $0.baseAddress) }
+    return parameters.map { $0! }
+}
+
+/// Convenience wrapper around `LLVMGetParamTypes` that returns the parameter type array.
+private func LLVMGetParamTypes(_ functionType: LLVMTypeRef) -> [LLVMTypeRef] {
+    var parameters = ContiguousArray<LLVMTypeRef?>(repeating: nil, count: Int(LLVMCountParamTypes(functionType)))
+    parameters.withUnsafeMutableBufferPointer { LLVMGetParamTypes(functionType, $0.baseAddress) }
     return parameters.map { $0! }
 }
 
