@@ -253,10 +253,12 @@ public final class IRGenerator: ASTVisitor {
         let llvmFunction = try lookupFunction(named: astFunction.prototype.name, argumentTypes: argumentTypes)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
         LLVMPositionBuilderAtEnd(builder, basicBlock)
+        let namedValuesBackup = namedValues
         namedValues.removeAll(keepingCapacity: true)
         createParameterAllocas(astFunction.prototype, llvmFunction)
         do {
             let body = try astFunction.body.map { try $0.acceptVisitor(self) }
+            namedValues = namedValuesBackup
             return (llvmFunction, body)
         } catch {
             // Error reading body, remove function.

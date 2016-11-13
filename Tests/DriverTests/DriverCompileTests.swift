@@ -91,6 +91,21 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(output.buffer, "main.gaia:4:8: error: unknown variable 'y'\n")
     }
 
+    func testMultipleNonExternFunctionCallsInNonExternFunction() throws {
+        let program =
+            "func foo(x) x+1\n" +
+            "func bar(y)\n" +
+            "    foo(y)\n" +
+            "    foo(y)\n" +
+            "end\n\n" +
+            "bar(1)\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let driver = Driver()
+        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
+
+        XCTAssertEqual(exitStatus, 2)
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -98,6 +113,7 @@ class DriverCompileTests: XCTestCase {
         ("testCompilationOfMultilineFunction", testCompilationOfMultilineFunction),
         ("testCompilationOfMultilineFunctionWithMultilineIf", testCompilationOfMultilineFunctionWithMultilineIf),
         ("testUnknownVariableErrorMessageSourceLocationValidity", testUnknownVariableErrorMessageSourceLocationValidity),
+        ("testMultipleNonExternFunctionCallsInNonExternFunction", testMultipleNonExternFunctionCallsInNonExternFunction),
     ]
 }
 
