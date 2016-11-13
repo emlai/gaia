@@ -69,11 +69,9 @@ public final class Driver {
     }
 
     private func compile(file inputFileName: String) {
-        print("Compiling \(inputFileName)... ", terminator: "")
         initModuleAndFunctionPassManager(moduleName: inputFileName)
         compileModule(inputFileName)
         emitModule(as: LLVMObjectFile, toPath: inputFileName + ".o")
-        print("Done.")
     }
 
     private func compileModule(_ inputFileName: String) {
