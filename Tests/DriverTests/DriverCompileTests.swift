@@ -132,6 +132,30 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(output, "abc")
     }
 
+    func testInvalidTypesInArithmeticOperation() throws {
+        let program =
+            "extern func putchar(ch)\n" +
+            "5 + 5.0\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let output = TextOutputStreamBuffer()
+        let driver = Driver(outputStream: output)
+        _ = try driver.compileAndExecute(inputFile: "main.gaia")
+
+        XCTAssertEqual(output.buffer, "invalid types `Int` and `Float` for arithmetic operation\n")
+    }
+
+    func testInvalidTypesInComparisonOperation() throws {
+        let program =
+            "extern func putchar(ch)\n" +
+            "5.0 != putchar(0)\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let output = TextOutputStreamBuffer()
+        let driver = Driver(outputStream: output)
+        _ = try driver.compileAndExecute(inputFile: "main.gaia")
+
+        XCTAssertEqual(output.buffer, "invalid types `Float` and `Void` for comparison operation\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -141,6 +165,8 @@ class DriverCompileTests: XCTestCase {
         ("testUnknownVariableErrorMessageSourceLocationValidity", testUnknownVariableErrorMessageSourceLocationValidity),
         ("testMultipleNonExternFunctionCallsInNonExternFunction", testMultipleNonExternFunctionCallsInNonExternFunction),
         ("testMultiStatementIf", testMultiStatementIf),
+        ("testInvalidTypesInArithmeticOperation", testInvalidTypesInArithmeticOperation),
+        ("testInvalidTypesInComparisonOperation", testInvalidTypesInComparisonOperation),
     ]
 }
 

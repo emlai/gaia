@@ -59,16 +59,16 @@ public final class IRGenerator: ASTVisitor {
         let right = try binaryOperation.rightOperand.acceptVisitor(self)
 
         switch binaryOperation.operator {
-            case .plus: return buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
-            case .minus: return buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
-            case .multiplication: return buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
-            case .division: return buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
-            case .equals: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
-            case .notEquals: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
-            case .greaterThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
-            case .lessThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
-            case .greaterThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
-            case .lessThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
+            case .plus: return try buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
+            case .minus: return try buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
+            case .multiplication: return try buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
+            case .division: return try buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
+            case .equals: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
+            case .notEquals: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
+            case .greaterThan: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .lessThan: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
+            case .greaterThanOrEqual: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
+            case .lessThanOrEqual: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
             default: fatalError("unimplemented binary operator '\(binaryOperation.operator.rawValue)'")
         }
     }
@@ -299,15 +299,15 @@ public final class IRGenerator: ASTVisitor {
                                           _ floatingPointOperationBuildFunc: RealComparisonOperationBuildFunc,
                                           _ integerOperationPredicate: LLVMIntPredicate,
                                           _ floatingPointOperationPredicate: LLVMRealPredicate,
-                                          _ name: String) -> LLVMValueRef {
-        switch LLVMTypeOf(lhs) {
-            case LLVMInt1TypeInContext(context),
-                 LLVMInt64TypeInContext(context):
+                                          _ name: String) throws -> LLVMValueRef {
+        switch (LLVMTypeOf(lhs), LLVMTypeOf(rhs)) {
+            case (LLVMInt1Type(), LLVMInt1Type()),
+                 (LLVMInt64Type(), LLVMInt64Type()):
                 return integerOperationBuildFunc(builder, integerOperationPredicate, lhs, rhs, name)
-            case LLVMDoubleTypeInContext(context):
+            case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
             default:
-                fatalError("unknown type")
+                throw IRGenError.invalidType("invalid types `\(lhs.gaiaTypeName)` and `\(rhs.gaiaTypeName)` for comparison operation")
         }
     }
 
@@ -317,13 +317,14 @@ public final class IRGenerator: ASTVisitor {
     private func buildBinaryOperation(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef,
                                       _ integerOperationBuildFunc: BinaryOperationBuildFunc,
                                       _ floatingPointOperationBuildFunc: BinaryOperationBuildFunc,
-                                      _ name: String) -> LLVMValueRef {
-        switch LLVMTypeOf(lhs) {
-            case LLVMInt64TypeInContext(context):
+                                      _ name: String) throws -> LLVMValueRef {
+        switch (LLVMTypeOf(lhs), LLVMTypeOf(rhs)) {
+            case (LLVMInt64Type(), LLVMInt64Type()):
                 return integerOperationBuildFunc(builder, lhs, rhs, name)
-            case LLVMDoubleTypeInContext(context):
+            case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
-            default: fatalError("unknown type")
+            default:
+                throw IRGenError.invalidType("invalid types `\(lhs.gaiaTypeName)` and `\(rhs.gaiaTypeName)` for arithmetic operation")
         }
     }
 
@@ -375,5 +376,22 @@ private func LLVMGetParamTypes(_ functionType: LLVMTypeRef) -> [LLVMTypeRef] {
 extension LLVMValueRef {
     var returnType: LLVMTypeRef {
         return LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(self)))
+    }
+}
+
+extension LLVMValueRef {
+    /// The Gaia type name corresponding to the LLVM type of this value.
+    var gaiaTypeName: String {
+        switch LLVMTypeOf(self) {
+            case LLVMVoidType(): return "Void"
+            case LLVMInt1Type(): return "Bool"
+            case LLVMInt8Type(): return "Int8"
+            case LLVMInt16Type(): return "Int16"
+            case LLVMInt32Type(): return "Int32"
+            case LLVMInt64Type(): return "Int"
+            case LLVMFloatType(): return "Float32"
+            case LLVMDoubleType(): return "Float"
+            default: fatalError("unsupported type")
+        }
     }
 }
