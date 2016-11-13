@@ -90,7 +90,10 @@ class DriverCompileTests: XCTestCase {
         let driver = Driver(outputStream: output)
         _ = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        XCTAssertEqual(output.buffer, "main.gaia:4:8: error: unknown variable 'y'\n")
+        XCTAssertEqual(output.buffer,
+                       "main.gaia:4:8: error: unknown variable 'y'\n" +
+                       "    if y < 48\n" +
+                       "       ^\n")
     }
 
     func testMultipleNonExternFunctionCallsInNonExternFunction() throws {
@@ -141,7 +144,10 @@ class DriverCompileTests: XCTestCase {
         let driver = Driver(outputStream: output)
         _ = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        XCTAssertEqual(output.buffer, "main.gaia:2:3: error: invalid types `Int` and `Float` for arithmetic operation\n")
+        XCTAssertEqual(output.buffer,
+                       "main.gaia:2:3: error: invalid types `Int` and `Float` for arithmetic operation\n" +
+                       "5 + 5.0\n" +
+                       "  ^\n")
     }
 
     func testInvalidTypesInComparisonOperation() throws {
@@ -153,7 +159,10 @@ class DriverCompileTests: XCTestCase {
         let driver = Driver(outputStream: output)
         _ = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        XCTAssertEqual(output.buffer, "main.gaia:2:5: error: invalid types `Float` and `Void` for comparison operation\n")
+        XCTAssertEqual(output.buffer,
+                       "main.gaia:2:5: error: invalid types `Float` and `Void` for comparison operation\n" +
+                       "5.0 != putchar(0)\n" +
+                       "    ^\n")
     }
 
     static var allTests = [

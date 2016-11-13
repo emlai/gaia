@@ -113,6 +113,10 @@ public final class Driver {
         let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let relativeFileURL = URL(fileURLWithPath: file, relativeTo: currentDirectoryURL)
         outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
+        if let fileContents = try? String(contentsOfFile: file) {
+            let line = fileContents.components(separatedBy: .newlines)[location.line - 1]
+            outputStream.write("\(line)\n\(String(repeating: " ", count: location.column - 1))^\n")
+        }
     }
 
     private func emitModule(as codeGenFileType: LLVMCodeGenFileType, toPath outputFilePath: String) {
