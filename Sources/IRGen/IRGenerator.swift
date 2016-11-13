@@ -171,6 +171,9 @@ public final class IRGenerator: ASTVisitor {
 
         // merge
         LLVMPositionBuilderAtEnd(builder, mergeBlock)
+        if LLVMTypeOf(thenValue) == LLVMVoidType() {
+            return thenValue! // HACK
+        }
         let phi = LLVMBuildPhi(builder, LLVMTypeOf(thenValue), "iftmp")
         LLVMAddIncoming(phi, &thenValue, &thenBlock, 1)
         LLVMAddIncoming(phi, &elseValue, &elseBlock, 1)

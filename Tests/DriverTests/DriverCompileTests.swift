@@ -54,10 +54,30 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(exitStatus, 0)
     }
 
+    func testCompilationOfMultilineFunctionWithMultilineIf() throws {
+        let program =
+            "extern func putchar(ch)\n\n" +
+            "func foo(x)\n" +
+            "    if x < 48\n" +
+            "        putchar(x+15)\n" +
+            "    else\n" +
+            "        putchar(x-15)\n" +
+            "end\n\n" +
+            "foo(48)\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let driver = Driver()
+        let stdoutPipe = Pipe()
+        _ = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
+
+        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+        XCTAssertEqual(output, "!")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
         ("testCompilationOfMultipleCallsToNonExternFunction", testCompilationOfMultipleCallsToNonExternFunction),
         ("testCompilationOfMultilineFunction", testCompilationOfMultilineFunction),
+        ("testCompilationOfMultilineFunctionWithMultilineIf", testCompilationOfMultilineFunctionWithMultilineIf),
     ]
 }
