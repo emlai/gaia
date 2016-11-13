@@ -80,7 +80,7 @@ public final class Parser {
 
     private func parseIntegerLiteral() -> Expression {
         guard case .integerLiteral(let value)? = token else { fatalError() }
-        let e = Expression.integerLiteral(value: value)
+        let e = IntegerLiteral(value: value)
         _ = nextToken() // consume the literal
         return e
     }
@@ -88,8 +88,8 @@ public final class Parser {
     private func parseBooleanLiteral() -> Expression {
         let e: Expression
         switch token {
-            case .keyword(.true)?: e = .booleanLiteral(value: true)
-            case .keyword(.false)?: e = .booleanLiteral(value: false)
+            case .keyword(.true)?: e = BooleanLiteral(value: true)
+            case .keyword(.false)?: e = BooleanLiteral(value: false)
             default: preconditionFailure()
         }
         _ = nextToken() // consume the literal
@@ -98,7 +98,7 @@ public final class Parser {
 
     private func parseFloatingPointLiteral() -> Expression {
         guard case .floatingPointLiteral(let value)? = token else { fatalError() }
-        let e = Expression.floatingPointLiteral(value: value)
+        let e = FloatingPointLiteral(value: value)
         _ = nextToken() // consume the literal
         return e
     }
@@ -120,7 +120,7 @@ public final class Parser {
 
         if nextToken() != .leftParenthesis {
             // It's a variable.
-            return .variable(location: identifierSourceLocation, name: identifier)
+            return Variable(name: identifier, at: identifierSourceLocation)
         }
 
         // It's a function call.
@@ -136,7 +136,7 @@ public final class Parser {
             }
         }
         _ = nextToken() // consume ')'
-        return .functionCall(location: identifierSourceLocation, functionName: identifier, arguments: arguments)
+        return FunctionCall(functionName: identifier, arguments: arguments, at: identifierSourceLocation)
     }
 
     private func parsePrimaryExpression() throws -> Expression {
@@ -168,7 +168,7 @@ public final class Parser {
             default: throw ParseError.unexpectedToken("expected unary operator")
         }
         _ = nextToken()
-        return .unary(operator: unaryOperator, operand: try parseUnaryExpression())
+        return UnaryOperation(operator: unaryOperator, operand: try parseUnaryExpression())
     }
 
     private func parseBinOpRHS(precedence: Int, lhs: Expression) throws -> Expression {
@@ -198,7 +198,7 @@ public final class Parser {
             }
 
             // Merge lhs and rhs.
-            lhs = .binary(operator: binaryOperator, leftOperand: lhs, rightOperand: rhs)
+            lhs = BinaryOperation(operator: binaryOperator, leftOperand: lhs, rightOperand: rhs)
         }
     }
 
@@ -213,6 +213,6 @@ public final class Parser {
         _ = nextToken() // consume 'else'
         if token == .newline { _ = nextToken() } // consume optional newline
         let elseBranch = try parseExpression()
-        return .if(condition: condition, then: thenBranch, else: elseBranch)
+        return If(condition: condition, then: thenBranch, else: elseBranch)
     }
 }

@@ -32,32 +32,33 @@ public final class IRGenerator: ASTVisitor {
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
-    public func visitVariableExpression(location: SourceLocation, name: String) throws -> LLVMValueRef {
-        guard let namedValue = namedValues[name] else {
-            throw IRGenError.unknownIdentifier(location: location, message: "unknown variable '\(name)'")
+    public func visit(variable: Variable) throws -> LLVMValueRef {
+        guard let namedValue = namedValues[variable.name] else {
+            throw IRGenError.unknownIdentifier(location: variable.sourceLocation,
+                                               message: "unknown variable '\(variable.name)'")
         }
-        return LLVMBuildLoad(builder, namedValue, name)
+        return LLVMBuildLoad(builder, namedValue, variable.name)
     }
 
-    public func visitUnaryExpression(operator: UnaryOperator, operand: Expression) throws -> LLVMValueRef {
-        let operandValue = try operand.acceptVisitor(self)
-        switch `operator` {
+    public func visit(unaryOperation: UnaryOperation) throws -> LLVMValueRef {
+        let operandValue = try unaryOperation.operand.acceptVisitor(self)
+        switch unaryOperation.operator {
             case .not: return try buildLogicalNegation(of: operandValue)
             case .plus: return operandValue
             case .minus: return try buildNumericNegation(of: operandValue)
         }
     }
 
-    public func visitBinaryExpression(operator: BinaryOperator, lhs: Expression, rhs: Expression) throws -> LLVMValueRef {
+    public func visit(binaryOperation: BinaryOperation) throws -> LLVMValueRef {
         // Special case for '=' because we don't want to emit lhs as an expression.
-        if (`operator` == .assignment) {
-            return buildAssignment(operator: `operator`, lhs: lhs, rhs: rhs)
+        if (binaryOperation.operator == .assignment) {
+            return buildAssignment(binaryOperation)
         }
 
-        let left = try lhs.acceptVisitor(self)
-        let right = try rhs.acceptVisitor(self)
+        let left = try binaryOperation.leftOperand.acceptVisitor(self)
+        let right = try binaryOperation.rightOperand.acceptVisitor(self)
 
-        switch `operator` {
+        switch binaryOperation.operator {
             case .plus: return buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
             case .minus: return buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
             case .multiplication: return buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
@@ -68,32 +69,32 @@ public final class IRGenerator: ASTVisitor {
             case .lessThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
             case .greaterThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
             case .lessThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
-            default: fatalError("unimplemented binary operator '\(`operator`.rawValue)'")
+            default: fatalError("unimplemented binary operator '\(binaryOperation.operator.rawValue)'")
         }
     }
 
-    public func visitFunctionCallExpression(location: SourceLocation, functionName: String,
-                                            arguments: [Expression]) throws -> LLVMValueRef {
+    public func visit(functionCall: FunctionCall) throws -> LLVMValueRef {
         let prototype: FunctionPrototype
         let nonExternFunction: Function?
-        if let externPrototype = externFunctionPrototypes[functionName] {
+        if let externPrototype = externFunctionPrototypes[functionCall.functionName] {
             prototype = externPrototype
             nonExternFunction = nil
-        } else if let function = functionDefinitions[functionName] {
+        } else if let function = functionDefinitions[functionCall.functionName] {
             prototype = function.prototype
             nonExternFunction = function
         } else {
-            throw IRGenError.unknownIdentifier(location: location, message: "unknown function name '\(functionName)'")
+            throw IRGenError.unknownIdentifier(location: functionCall.sourceLocation,
+                                               message: "unknown function name '\(functionCall.functionName)'")
         }
 
         let parameterCount = prototype.parameters.count
-        if parameterCount != arguments.count {
+        if parameterCount != functionCall.arguments.count {
             throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
         }
 
         var argumentValues = [LLVMValueRef?]()
-        argumentValues.reserveCapacity(arguments.count)
-        for argument in arguments {
+        argumentValues.reserveCapacity(functionCall.arguments.count)
+        for argument in functionCall.arguments {
             argumentValues.append(try argument.acceptVisitor(self))
         }
 
@@ -105,7 +106,7 @@ public final class IRGenerator: ASTVisitor {
             callee = try getInstantiation(of: function, for: argumentTypes!)
         } else {
             self.returnType = LLVMVoidType() // TODO: Support non-void extern functions.
-            callee = try LLVMGetNamedFunction(module, functionName) ?? prototype.acceptVisitor(self)
+            callee = try LLVMGetNamedFunction(module, functionCall.functionName) ?? prototype.acceptVisitor(self)
         }
 
         let name = callee.returnType != LLVMVoidType() ? "calltmp" : ""
@@ -127,21 +128,21 @@ public final class IRGenerator: ASTVisitor {
         return try function.acceptVisitor(self)
     }
 
-    public func visitIntegerLiteralExpression(value: Int64) -> LLVMValueRef {
-        return LLVMConstInt(LLVMInt64TypeInContext(context), UInt64(value), LLVMFalse)
+    public func visit(integerLiteral: IntegerLiteral) -> LLVMValueRef {
+        return LLVMConstInt(LLVMInt64TypeInContext(context), UInt64(integerLiteral.value), LLVMFalse)
     }
 
-    public func visitFloatingPointLiteralExpression(value: Float64) -> LLVMValueRef {
-        return LLVMConstReal(LLVMDoubleTypeInContext(context), value)
+    public func visit(floatingPointLiteral: FloatingPointLiteral) -> LLVMValueRef {
+        return LLVMConstReal(LLVMDoubleTypeInContext(context), floatingPointLiteral.value)
     }
 
-    public func visitBooleanLiteralExpression(value: Bool) -> LLVMValueRef {
-        return LLVMConstInt(LLVMInt1TypeInContext(context), value ? 1 : 0, LLVMFalse)
+    public func visit(booleanLiteral: BooleanLiteral) -> LLVMValueRef {
+        return LLVMConstInt(LLVMInt1TypeInContext(context), booleanLiteral.value ? 1 : 0, LLVMFalse)
     }
 
-    public func visitIfExpression(condition: Expression, then: Expression, else: Expression) throws -> LLVMValueRef {
+    public func visit(if: If) throws -> LLVMValueRef {
         // condition
-        let conditionValue = try condition.acceptVisitor(self)
+        let conditionValue = try `if`.condition.acceptVisitor(self)
         if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
             throw IRGenError.invalidType("'if' condition requires a Bool expression")
         }
@@ -156,13 +157,13 @@ public final class IRGenerator: ASTVisitor {
 
         // then
         LLVMPositionBuilderAtEnd(builder, thenBlock)
-        var thenValue: LLVMValueRef? = try then.acceptVisitor(self)
+        var thenValue: LLVMValueRef? = try `if`.then.acceptVisitor(self)
         LLVMBuildBr(builder, mergeBlock)
         thenBlock = LLVMGetInsertBlock(builder)
 
         // else
         LLVMPositionBuilderAtEnd(builder, elseBlock)
-        var elseValue: LLVMValueRef? = try `else`.acceptVisitor(self)
+        var elseValue: LLVMValueRef? = try `if`.else.acceptVisitor(self)
         LLVMBuildBr(builder, mergeBlock)
         elseBlock = LLVMGetInsertBlock(builder)
 
@@ -181,14 +182,14 @@ public final class IRGenerator: ASTVisitor {
         return phi!
     }
 
-    public func visitFunction(_ astFunction: Function) throws -> LLVMValueRef {
+    public func visit(function: Function) throws -> LLVMValueRef {
         let argumentTypes = self.argumentTypes!
-        var (llvmFunction, body) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
+        var (llvmFunction, body) = try buildFunctionBody(of: function, argumentTypes: argumentTypes)
         returnType = LLVMTypeOf(body.last!)
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
-        (llvmFunction, body) = try buildFunctionBody(astFunction: astFunction, argumentTypes: argumentTypes)
+        (llvmFunction, body) = try buildFunctionBody(of: function, argumentTypes: argumentTypes)
 
         if LLVMTypeOf(body.last!) == LLVMVoidType() {
             LLVMBuildRetVoid(builder)
@@ -200,7 +201,7 @@ public final class IRGenerator: ASTVisitor {
         return llvmFunction
     }
 
-    public func visitFunctionPrototype(_ prototype: FunctionPrototype) -> LLVMValueRef {
+    public func visit(prototype: FunctionPrototype) -> LLVMValueRef {
         var parameterTypes = argumentTypes!.map { Optional.some($0) }
         let functionType = LLVMFunctionType(returnType, &parameterTypes,
                                             UInt32(parameterTypes.count), LLVMFalse)
@@ -247,7 +248,7 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildFunctionBody(astFunction: Function, argumentTypes: [LLVMTypeRef]) throws
+    private func buildFunctionBody(of astFunction: Function, argumentTypes: [LLVMTypeRef]) throws
         -> (function: LLVMValueRef, body: [LLVMValueRef]) {
         let llvmFunction = try lookupFunction(named: astFunction.prototype.name, argumentTypes: argumentTypes)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
@@ -322,7 +323,7 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildAssignment(operator: BinaryOperator, lhs: Expression, rhs: Expression) -> LLVMValueRef {
+    private func buildAssignment(_ binaryOperation: BinaryOperation) -> LLVMValueRef {
         fatalError("unimplemented")
         // TODO
     }

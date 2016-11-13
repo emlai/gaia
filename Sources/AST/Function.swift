@@ -8,7 +8,7 @@ public final class Function: ASTNode {
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        return try visitor.visitFunction(self)
+        return try visitor.visit(function: self)
     }
 }
 
@@ -22,7 +22,7 @@ public final class FunctionPrototype: ASTNode {
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        return try visitor.visitFunctionPrototype(self)
+        return try visitor.visit(prototype: self)
     }
 }
 

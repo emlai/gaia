@@ -28,36 +28,116 @@ public enum BinaryOperator: String {
     }
 }
 
-public indirect enum Expression: ASTNode {
-    case integerLiteral(value: Int64)
-    case floatingPointLiteral(value: Float64)
-    case booleanLiteral(value: Bool)
-    case variable(location: SourceLocation, name: String)
-    case unary(operator: UnaryOperator, operand: Expression)
-    case binary(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression)
-    case functionCall(location: SourceLocation, functionName: String, arguments: [Expression])
-    case `if`(condition: Expression, then: Expression, else: Expression)
+public protocol Expression: ASTNode { }
+
+public class IntegerLiteral: Expression {
+    public let value: Int64
+
+    public init(value: Int64) {
+        self.value = value
+    }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        switch self {
-            case .integerLiteral(let value):
-                return try visitor.visitIntegerLiteralExpression(value: value)
-            case .floatingPointLiteral(let value):
-                return try visitor.visitFloatingPointLiteralExpression(value: value)
-            case .booleanLiteral(let value):
-                return try visitor.visitBooleanLiteralExpression(value: value)
-            case .variable(let location, let name):
-                return try visitor.visitVariableExpression(location: location, name: name)
-            case .unary(let op, let operand):
-                return try visitor.visitUnaryExpression(operator: op, operand: operand)
-            case .binary(let op, let lhs, let rhs):
-                return try visitor.visitBinaryExpression(operator: op, lhs: lhs, rhs: rhs)
-            case .functionCall(let location, let functionName, let arguments):
-                return try visitor.visitFunctionCallExpression(location: location,
-                                                               functionName: functionName,
-                                                               arguments: arguments)
-            case .if(let condition, let then, let `else`):
-                return try visitor.visitIfExpression(condition: condition, then: then, else: `else`)
-        }
+        return try visitor.visit(integerLiteral: self)
+    }
+}
+
+public class FloatingPointLiteral: Expression {
+    public let value: Float64
+
+    public init(value: Float64) {
+        self.value = value
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(floatingPointLiteral: self)
+    }
+}
+
+public class BooleanLiteral: Expression {
+    public let value: Bool
+
+    public init(value: Bool) {
+        self.value = value
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(booleanLiteral: self)
+    }
+}
+
+public class Variable: Expression {
+    public let name: String
+    public let sourceLocation: SourceLocation
+
+    public init(name: String, at sourceLocation: SourceLocation) {
+        self.name = name
+        self.sourceLocation = sourceLocation
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(variable: self)
+    }
+}
+
+public class UnaryOperation: Expression {
+    public let `operator`: UnaryOperator
+    public let operand: Expression
+
+    public init(operator: UnaryOperator, operand: Expression) {
+        self.operator = `operator`
+        self.operand = operand
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(unaryOperation: self)
+    }
+}
+
+public class BinaryOperation: Expression {
+    public let `operator`: BinaryOperator
+    public let leftOperand: Expression
+    public let rightOperand: Expression
+
+    public init(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression) {
+        self.operator = `operator`
+        self.leftOperand = leftOperand
+        self.rightOperand = rightOperand
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(binaryOperation: self)
+    }
+}
+
+public class FunctionCall: Expression {
+    public let functionName: String
+    public let arguments: [Expression]
+    public let sourceLocation: SourceLocation
+
+    public init(functionName: String, arguments: [Expression], at sourceLocation: SourceLocation) {
+        self.functionName = functionName
+        self.arguments = arguments
+        self.sourceLocation = sourceLocation
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(functionCall: self)
+    }
+}
+
+public class If: Expression {
+    public let condition: Expression
+    public let then: Expression
+    public let `else`: Expression
+
+    public init(condition: Expression, then: Expression, else: Expression) {
+        self.condition = condition
+        self.then = then
+        self.else = `else`
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(if: self)
     }
 }
