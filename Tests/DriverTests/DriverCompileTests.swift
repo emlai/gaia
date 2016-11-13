@@ -62,6 +62,7 @@ class DriverCompileTests: XCTestCase {
             "        putchar(x+15)\n" +
             "    else\n" +
             "        putchar(x-15)\n" +
+            "    end\n" +
             "end\n\n" +
             "foo(48)\n"
         try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
@@ -81,6 +82,7 @@ class DriverCompileTests: XCTestCase {
             "        1\n" +
             "    else\n" +
             "        2\n" +
+            "    end\n" +
             "end\n\n" +
             "foo(48)\n"
         try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
@@ -106,6 +108,30 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(exitStatus, 2)
     }
 
+    func testMultiStatementIf() throws {
+        let program =
+            "extern func putchar(ch)\n\n" +
+            "func foo(uppercase)\n" +
+            "    if uppercase\n" +
+            "        putchar(65)\n" +
+            "        putchar(66)\n" +
+            "        putchar(67)\n" +
+            "    else\n" +
+            "        putchar(97)\n" +
+            "        putchar(98)\n" +
+            "        putchar(99)\n" +
+            "    end\n" +
+            "end\n\n" +
+            "foo(false)\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let driver = Driver()
+        let stdoutPipe = Pipe()
+        _ = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
+
+        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+        XCTAssertEqual(output, "abc")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -114,6 +140,7 @@ class DriverCompileTests: XCTestCase {
         ("testCompilationOfMultilineFunctionWithMultilineIf", testCompilationOfMultilineFunctionWithMultilineIf),
         ("testUnknownVariableErrorMessageSourceLocationValidity", testUnknownVariableErrorMessageSourceLocationValidity),
         ("testMultipleNonExternFunctionCallsInNonExternFunction", testMultipleNonExternFunctionCallsInNonExternFunction),
+        ("testMultiStatementIf", testMultiStatementIf),
     ]
 }
 

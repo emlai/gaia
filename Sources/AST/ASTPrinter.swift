@@ -57,9 +57,9 @@ public final class ASTPrinter: ASTVisitor {
         outputStream.write("if ")
         try `if`.condition.acceptVisitor(self)
         outputStream.write(" then ")
-        try `if`.then.acceptVisitor(self)
+        try `if`.then.forEach { try $0.acceptVisitor(self) }
         outputStream.write(" else ")
-        try `if`.else.acceptVisitor(self)
+        try `if`.else.forEach { try $0.acceptVisitor(self) }
     }
 
     public func visit(function: Function) throws {

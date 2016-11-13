@@ -206,13 +206,32 @@ public final class Parser {
         _ = nextToken() // consume 'if'
         let condition = try parseExpression()
         try expectToken(oneOf: .keyword(.then), .newline)
-        _ = nextToken() // consume 'then' or newline
-        let thenBranch = try parseExpression()
-        if token == .newline { _ = nextToken() } // consume optional newline
-        try expectToken(.keyword(.else))
-        _ = nextToken() // consume 'else'
-        if token == .newline { _ = nextToken() } // consume optional newline
-        let elseBranch = try parseExpression()
+        var thenBranch = [Expression]()
+        var elseBranch = [Expression]()
+
+        if token == .newline {
+            // Multi-line if
+            while nextToken() != .keyword(.else) {
+                thenBranch.append(try parseExpression())
+                try expectToken(.newline)
+            }
+            _ = nextToken() // consume 'else'
+            try expectToken(.newline)
+            while nextToken() != .keyword(.end) {
+                elseBranch.append(try parseExpression())
+                try expectToken(.newline)
+            }
+            _ = nextToken() // consume 'end'
+            try expectToken(.newline)
+        } else {
+            // One-line if
+            _ = nextToken() // consume 'then'
+            thenBranch.append(try parseExpression())
+            try expectToken(.keyword(.else))
+            _ = nextToken() // consume 'else'
+            elseBranch.append(try parseExpression())
+        }
+
         return If(condition: condition, then: thenBranch, else: elseBranch)
     }
 }

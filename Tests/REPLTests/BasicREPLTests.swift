@@ -64,10 +64,10 @@ class BasicREPLTests: XCTestCase {
     }
 
     func testSimpleMultilineIfExpression() {
-        XCTAssert(replInput: "if true\n\t666\nelse\n\t777\n", producesOutput: "666\n")
-        XCTAssert(replInput: "if false\n\t666\nelse\n\t777\n", producesOutput: "777\n")
-        XCTAssert(replInput: "if false\n\t666\nelse\n\ttrue\n", producesOutput: "'then' and 'else' branches must have same type\n")
-        XCTAssert(replInput: "if 0\n\t666\nelse\n\t777\n", producesOutput: "'if' condition requires a Bool expression\n")
+        XCTAssert(replInput: "if true\n\t666\nelse\n\t777\nend\n", producesOutput: "666\n")
+        XCTAssert(replInput: "if false\n\t666\nelse\n\t777\nend\n", producesOutput: "777\n")
+        XCTAssert(replInput: "if false\n\t666\nelse\n\ttrue\nend\n", producesOutput: "'then' and 'else' branches must have same type\n")
+        XCTAssert(replInput: "if 0\n\t666\nelse\n\t777\nend\n", producesOutput: "'if' condition requires a Bool expression\n")
     }
 
     func testSimpleFunctionDefinitionAndCall() {

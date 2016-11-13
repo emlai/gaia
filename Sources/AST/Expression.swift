@@ -128,10 +128,10 @@ public class FunctionCall: Expression {
 
 public class If: Expression {
     public let condition: Expression
-    public let then: Expression
-    public let `else`: Expression
+    public let then: [Expression]
+    public let `else`: [Expression]
 
-    public init(condition: Expression, then: Expression, else: Expression) {
+    public init(condition: Expression, then: [Expression], else: [Expression]) {
         self.condition = condition
         self.then = then
         self.else = `else`

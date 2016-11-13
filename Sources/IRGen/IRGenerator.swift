@@ -157,28 +157,30 @@ public final class IRGenerator: ASTVisitor {
 
         // then
         LLVMPositionBuilderAtEnd(builder, thenBlock)
-        var thenValue: LLVMValueRef? = try `if`.then.acceptVisitor(self)
+        let thenValues = try `if`.then.map { try $0.acceptVisitor(self) }
+        var lastThenValue = thenValues.last
         LLVMBuildBr(builder, mergeBlock)
         thenBlock = LLVMGetInsertBlock(builder)
 
         // else
         LLVMPositionBuilderAtEnd(builder, elseBlock)
-        var elseValue: LLVMValueRef? = try `if`.else.acceptVisitor(self)
+        let elseValues = try `if`.else.map { try $0.acceptVisitor(self) }
+        var lastElseValue = elseValues.last
         LLVMBuildBr(builder, mergeBlock)
         elseBlock = LLVMGetInsertBlock(builder)
 
-        if LLVMTypeOf(thenValue) != LLVMTypeOf(elseValue) {
+        if LLVMTypeOf(lastThenValue) != LLVMTypeOf(lastElseValue) {
             throw IRGenError.invalidType("'then' and 'else' branches must have same type")
         }
 
         // merge
         LLVMPositionBuilderAtEnd(builder, mergeBlock)
-        if LLVMTypeOf(thenValue) == LLVMVoidType() {
-            return thenValue! // HACK
+        if LLVMTypeOf(lastThenValue) == LLVMVoidType() {
+            return lastThenValue! // HACK
         }
-        let phi = LLVMBuildPhi(builder, LLVMTypeOf(thenValue), "iftmp")
-        LLVMAddIncoming(phi, &thenValue, &thenBlock, 1)
-        LLVMAddIncoming(phi, &elseValue, &elseBlock, 1)
+        let phi = LLVMBuildPhi(builder, LLVMTypeOf(lastThenValue), "iftmp")
+        LLVMAddIncoming(phi, &lastThenValue, &thenBlock, 1)
+        LLVMAddIncoming(phi, &lastElseValue, &elseBlock, 1)
         return phi!
     }
 
