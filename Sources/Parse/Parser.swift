@@ -8,14 +8,18 @@ enum ParseError: Error {
 public final class Parser {
     private let lexer: Lexer
     private var token: Token! /// The token currently being processed.
+    private var tokenSourceLocation: SourceLocation!
 
     public init(readingFrom inputStream: TextInputStream = Stdin()) {
         lexer = Lexer(readFrom: inputStream)
         token = nil
+        tokenSourceLocation = nil
     }
 
     public func nextToken() -> Token {
-        token = lexer.lex()
+        let (tokenSourceLocation, token) = lexer.lex()
+        self.tokenSourceLocation = tokenSourceLocation
+        self.token = token
         return token
     }
 
@@ -112,9 +116,11 @@ public final class Parser {
             fatalError()
         }
 
+        let identifierSourceLocation = tokenSourceLocation!
+
         if nextToken() != .leftParenthesis {
             // It's a variable.
-            return .variable(name: identifier)
+            return .variable(location: identifierSourceLocation, name: identifier)
         }
 
         // It's a function call.
@@ -130,7 +136,7 @@ public final class Parser {
             }
         }
         _ = nextToken() // consume ')'
-        return .functionCall(functionName: identifier, arguments: arguments)
+        return .functionCall(location: identifierSourceLocation, functionName: identifier, arguments: arguments)
     }
 
     private func parsePrimaryExpression() throws -> Expression {

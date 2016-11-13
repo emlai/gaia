@@ -32,10 +32,10 @@ public indirect enum Expression: ASTNode {
     case integerLiteral(value: Int64)
     case floatingPointLiteral(value: Float64)
     case booleanLiteral(value: Bool)
-    case variable(name: String)
+    case variable(location: SourceLocation, name: String)
     case unary(operator: UnaryOperator, operand: Expression)
     case binary(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression)
-    case functionCall(functionName: String, arguments: [Expression])
+    case functionCall(location: SourceLocation, functionName: String, arguments: [Expression])
     case `if`(condition: Expression, then: Expression, else: Expression)
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -46,14 +46,16 @@ public indirect enum Expression: ASTNode {
                 return try visitor.visitFloatingPointLiteralExpression(value: value)
             case .booleanLiteral(let value):
                 return try visitor.visitBooleanLiteralExpression(value: value)
-            case .variable(let name):
-                return try visitor.visitVariableExpression(name: name)
+            case .variable(let location, let name):
+                return try visitor.visitVariableExpression(location: location, name: name)
             case .unary(let op, let operand):
                 return try visitor.visitUnaryExpression(operator: op, operand: operand)
             case .binary(let op, let lhs, let rhs):
                 return try visitor.visitBinaryExpression(operator: op, lhs: lhs, rhs: rhs)
-            case .functionCall(let functionName, let arguments):
-                return try visitor.visitFunctionCallExpression(functionName: functionName, arguments: arguments)
+            case .functionCall(let location, let functionName, let arguments):
+                return try visitor.visitFunctionCallExpression(location: location,
+                                                               functionName: functionName,
+                                                               arguments: arguments)
             case .if(let condition, let then, let `else`):
                 return try visitor.visitIfExpression(condition: condition, then: then, else: `else`)
         }

@@ -48,7 +48,7 @@ public final class REPL {
                     case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
-            } catch IRGenError.unknownIdentifier(let message) {
+            } catch IRGenError.unknownIdentifier(_, let message) {
                 outputStream.write("\(message)\n")
             } catch IRGenError.invalidType(let message) {
                 outputStream.write("\(message)\n")

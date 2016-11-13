@@ -1,4 +1,6 @@
+import Foundation
 import Driver
 
 let driver = Driver()
-driver.compile(inputFiles: CommandLine.arguments.dropFirst())
+let success = driver.compile(inputFiles: CommandLine.arguments.dropFirst())
+exit(success ? 0 : 1)

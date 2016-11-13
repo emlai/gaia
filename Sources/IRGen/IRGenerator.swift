@@ -4,7 +4,7 @@ import AST
 
 public enum IRGenError: Error {
     case invalidType(String)
-    case unknownIdentifier(message: String)
+    case unknownIdentifier(location: SourceLocation, message: String)
     case argumentMismatch(message: String)
 }
 
@@ -32,9 +32,9 @@ public final class IRGenerator: ASTVisitor {
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
-    public func visitVariableExpression(name: String) throws -> LLVMValueRef {
+    public func visitVariableExpression(location: SourceLocation, name: String) throws -> LLVMValueRef {
         guard let namedValue = namedValues[name] else {
-            throw IRGenError.unknownIdentifier(message: "unknown variable '\(name)'")
+            throw IRGenError.unknownIdentifier(location: location, message: "unknown variable '\(name)'")
         }
         return LLVMBuildLoad(builder, namedValue, name)
     }
@@ -68,11 +68,12 @@ public final class IRGenerator: ASTVisitor {
             case .lessThan: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
             case .greaterThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
             case .lessThanOrEqual: return buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
-            default: throw IRGenError.unknownIdentifier(message: "unsupported binary operator")
+            default: fatalError("unimplemented binary operator '\(`operator`.rawValue)'")
         }
     }
 
-    public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws -> LLVMValueRef {
+    public func visitFunctionCallExpression(location: SourceLocation, functionName: String,
+                                            arguments: [Expression]) throws -> LLVMValueRef {
         let prototype: FunctionPrototype
         let nonExternFunction: Function?
         if let externPrototype = externFunctionPrototypes[functionName] {
@@ -82,7 +83,7 @@ public final class IRGenerator: ASTVisitor {
             prototype = function.prototype
             nonExternFunction = function
         } else {
-            throw IRGenError.unknownIdentifier(message: "unknown function name '\(functionName)'")
+            throw IRGenError.unknownIdentifier(location: location, message: "unknown function name '\(functionName)'")
         }
 
         let parameterCount = prototype.parameters.count

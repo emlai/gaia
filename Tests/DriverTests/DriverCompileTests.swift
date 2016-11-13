@@ -73,11 +73,38 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(output, "!")
     }
 
+    func testUnknownVariableErrorMessageSourceLocationValidity() throws {
+        let program =
+            "\n\n" +
+            "func foo(x)\n" +
+            "    if y < 48\n" +
+            "        1\n" +
+            "    else\n" +
+            "        2\n" +
+            "end\n\n" +
+            "foo(48)\n"
+        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
+        let output = TextOutputStreamBuffer()
+        let driver = Driver(outputStream: output)
+        _ = try driver.compileAndExecute(inputFile: "main.gaia")
+
+        XCTAssertEqual(output.buffer, "main.gaia:4:8: error: unknown variable 'y'\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
         ("testCompilationOfMultipleCallsToNonExternFunction", testCompilationOfMultipleCallsToNonExternFunction),
         ("testCompilationOfMultilineFunction", testCompilationOfMultilineFunction),
         ("testCompilationOfMultilineFunctionWithMultilineIf", testCompilationOfMultilineFunctionWithMultilineIf),
+        ("testUnknownVariableErrorMessageSourceLocationValidity", testUnknownVariableErrorMessageSourceLocationValidity),
     ]
+}
+
+class TextOutputStreamBuffer: TextOutputStream {
+    var buffer = ""
+
+    public func write(_ string: String) {
+        buffer += string
+    }
 }

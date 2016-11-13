@@ -6,17 +6,19 @@ import AST
 import IRGen
 
 public final class Driver {
+    private var outputStream: TextOutputStream
     private var parser: Parser?
     private let irGenerator: IRGenerator
     private let targetTriple: UnsafeMutablePointer<CChar>
     private var targetMachine: LLVMTargetMachineRef?
     private var module: LLVMModuleRef?
 
-    public init() {
+    public init(outputStream: TextOutputStream = Stdout()) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
 
+        self.outputStream = outputStream
         irGenerator = IRGenerator(context: LLVMGetGlobalContext())
 
         targetTriple = LLVMGetDefaultTargetTriple()
@@ -25,7 +27,7 @@ public final class Driver {
         var target: LLVMTargetRef? = nil
         var errorMessage: UnsafeMutablePointer<CChar>? = nil
         if LLVMGetTargetFromTriple(targetTriple, &target, &errorMessage) != 0 {
-            print(String(cString: errorMessage!))
+            self.outputStream.write("\(String(cString: errorMessage!))\n")
             exit(1)
         }
 
@@ -34,10 +36,10 @@ public final class Driver {
                                                 LLVMCodeModelDefault)
     }
 
-    /// Returns the exit status of the executed program on successful completion,
-    /// or `nil` if the compiled program was not executed.
+    /// Returns the exit status of the executed program on successful completion, or `nil` if
+    /// the compiled program was not executed, e.g. because the compilation didn't succeed.
     public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
-        compile(file: inputFile)
+        if !compile(file: inputFile) { return nil }
 
         let linkProcess = Process()
         linkProcess.launchPath = "/usr/bin/env"
@@ -57,47 +59,54 @@ public final class Driver {
         return executeProcess.terminationStatus
     }
 
-    public func compile(inputFiles: ArraySlice<String>) {
+    /// Returns whether the compilation completed successfully.
+    public func compile(inputFiles: ArraySlice<String>) -> Bool {
         if inputFiles.isEmpty {
-            print("error: no input files")
+            outputStream.write("error: no input files\n")
             exit(1)
         }
 
         for inputFileName in inputFiles {
-            compile(file: inputFileName)
+            if !compile(file: inputFileName) { return false }
         }
+        return true
     }
 
-    private func compile(file inputFileName: String) {
+    /// Returns whether the compilation completed successfully.
+    private func compile(file inputFileName: String) -> Bool {
         initModuleAndFunctionPassManager(moduleName: inputFileName)
-        compileModule(inputFileName)
+        if !compileModule(inputFileName) { return false }
         emitModule(as: LLVMObjectFile, toPath: inputFileName + ".o")
+        return true
     }
 
-    private func compileModule(_ inputFileName: String) {
+    /// Returns whether the compilation completed successfully.
+    private func compileModule(_ inputFileName: String) -> Bool {
         guard let inputFile = try? SourceFile(atPath: inputFileName) else {
-            print("error reading input file \(inputFileName), aborting")
-            exit(1)
+            outputStream.write("error reading input file \(inputFileName), aborting\n")
+            return false
         }
         parser = Parser(readingFrom: inputFile)
 
         while true {
             do {
                 switch parser!.nextToken() {
-                    case .eof: return
+                    case .eof: return true
                     case .newline: break
                     case .keyword(.func): try handleFunctionDefinition()
                     case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
-            } catch IRGenError.unknownIdentifier(let message) {
-                print(message)
-                exit(1)
+            } catch IRGenError.unknownIdentifier(let location, let message) {
+                let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                let relativeFileURL = URL(fileURLWithPath: inputFileName, relativeTo: currentDirectoryURL)
+                outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
+                return false
             } catch IRGenError.invalidType(let message) {
-                print(message)
-                exit(1)
+                outputStream.write("\(message)\n")
+                return false
             } catch {
-                exit(1)
+                return false
             }
         }
     }
@@ -107,7 +116,7 @@ public final class Driver {
         if LLVMTargetMachineEmitToFile(targetMachine, module,
                                        UnsafeMutablePointer<CChar>(mutating: outputFilePath),
                                        codeGenFileType, &errorMessage) != 0 {
-            print(String(cString: errorMessage!))
+            outputStream.write("\(String(cString: errorMessage!))\n")
             exit(1)
         }
         LLVMDisposeMessage(errorMessage)

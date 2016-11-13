@@ -13,7 +13,7 @@ public final class ASTPrinter: ASTVisitor {
         self.outputStream = outputStream
     }
 
-    public func visitVariableExpression(name: String) throws {
+    public func visitVariableExpression(location: SourceLocation, name: String) throws {
         outputStream.write(name)
     }
 
@@ -30,7 +30,8 @@ public final class ASTPrinter: ASTVisitor {
         outputStream.write(")")
     }
 
-    public func visitFunctionCallExpression(functionName: String, arguments: [Expression]) throws {
+    public func visitFunctionCallExpression(location: SourceLocation, functionName: String,
+                                            arguments: [Expression]) throws {
         outputStream.write(functionName)
         outputStream.write("(")
         for argument in arguments.dropLast() {

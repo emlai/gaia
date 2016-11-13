@@ -73,51 +73,82 @@ extension BinaryOperator {
 
 final class Lexer {
     private let inputStream: TextInputStream
+    private var currentSourceLocation: SourceLocation
+    private var previousSourceLocation: SourceLocation?
 
     public init(readFrom inputStream: TextInputStream) {
         self.inputStream = inputStream
+        currentSourceLocation = SourceLocation(line: 1, column: 0)
     }
 
-    func lex() -> Token {
+    /// Reads and returns the next unicode scalar (or `nil` on EOF) from the input stream,
+    /// updating `currentSourceLocation` and `previousSourceLocation` appropriately.
+    private func readNextInputCharacter() -> UnicodeScalar? {
+        previousSourceLocation = currentSourceLocation
+        let character = inputStream.read()
+        switch character {
+            case "\n"?: currentSourceLocation.advanceToNextLine()
+            default: currentSourceLocation.advanceToNextColumn()
+        }
+        return character
+    }
+
+    /// Puts the given character (or EOF if `nil`) to the beginning of the input stream,
+    /// updating `currentSourceLocation` and `previousSourceLocation` appropriately.
+    private func unreadInputCharacter(_ character: UnicodeScalar?) {
+        currentSourceLocation = previousSourceLocation!
+        previousSourceLocation = nil
+        inputStream.unread(character)
+    }
+
+    func lex() -> (SourceLocation, Token) {
         var character: UnicodeScalar? // `nil` on EOF
 
         repeat {
-            character = inputStream.read()
+            character = readNextInputCharacter()
         } while character == " " || character == "\t"
 
         // TODO
 //        guard let c = character else { return .eof }
 
         if let c = character, CharacterSet.newlines.contains(c) {
-            return .newline
+            return (currentSourceLocation, .newline)
         }
 
         if let c = character, CharacterSet.letters.contains(c) {
-            return lexKeywordOrIdentifier(firstCharacter: c)
+            return (currentSourceLocation, lexKeywordOrIdentifier(firstCharacter: c))
         }
 
         if let c = character, CharacterSet.decimalDigits.contains(c) {
-            return lexNumericLiteral(firstCharacter: c)
+            return (currentSourceLocation, lexNumericLiteral(firstCharacter: c))
         }
 
         func lexOperator(_ a: UnicodeScalar, _ aToken: Token, _ bToken: Token) -> Token? {
             if let c = character, c == a {
-                let next = inputStream.read()
+                let next = readNextInputCharacter()
                 if next == "=" { return bToken }
-                inputStream.unread(next)
+                unreadInputCharacter(next)
                 return aToken
             }
             return nil
         }
 
-        if let t = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) { return t }
-        if let t = lexOperator("!", .not, .binaryOperator(.notEquals)) { return t }
-        if let t = lexOperator("<", .binaryOperator(.lessThan), .binaryOperator(.lessThanOrEqual)) { return t }
-        if let t = lexOperator(">", .binaryOperator(.greaterThan), .binaryOperator(.greaterThanOrEqual)) { return t }
+        if let t = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) {
+            return (currentSourceLocation, t)
+        }
+        if let t = lexOperator("!", .not, .binaryOperator(.notEquals)) {
+            return (currentSourceLocation, t)
+        }
+        if let t = lexOperator("<", .binaryOperator(.lessThan), .binaryOperator(.lessThanOrEqual)) {
+            return (currentSourceLocation, t)
+        }
+        if let t = lexOperator(">", .binaryOperator(.greaterThan), .binaryOperator(.greaterThanOrEqual)) {
+            return (currentSourceLocation, t)
+        }
 
         if let c = character, c == "#" { // comment until end of line
             while true {
-                character = inputStream.read()
+                character = readNextInputCharacter()
                 guard let c = character else { break }
                 guard CharacterSet.newlines.contains(c) else { break }
             }
@@ -125,14 +156,14 @@ final class Lexer {
         }
 
         switch character {
-            case nil: return .eof
-            case "("?: return .leftParenthesis
-            case ")"?: return .rightParenthesis
-            case ","?: return .comma
-            case "+"?: return .plus
-            case "-"?: return .minus
-            case "*"?: return .binaryOperator(.multiplication)
-            case "/"?: return .binaryOperator(.division)
+            case nil: return (currentSourceLocation, .eof)
+            case "("?: return (currentSourceLocation, .leftParenthesis)
+            case ")"?: return (currentSourceLocation, .rightParenthesis)
+            case ","?: return (currentSourceLocation, .comma)
+            case "+"?: return (currentSourceLocation, .plus)
+            case "-"?: return (currentSourceLocation, .minus)
+            case "*"?: return (currentSourceLocation, .binaryOperator(.multiplication))
+            case "/"?: return (currentSourceLocation, .binaryOperator(.division))
             default: preconditionFailure()
         }
     }
@@ -142,11 +173,11 @@ final class Lexer {
         identifier.append(firstCharacter)
 
         while true {
-            let character = inputStream.read()
+            let character = readNextInputCharacter()
             if let c = character, CharacterSet.alphanumerics.contains(c) {
                 identifier.append(c)
             } else {
-                inputStream.unread(character)
+                unreadInputCharacter(character)
                 break
             }
         }
@@ -166,12 +197,12 @@ final class Lexer {
 
         while true {
             numericLiteral.append(character!)
-            character = inputStream.read()
+            character = readNextInputCharacter()
             if let c = character, CharacterSet.decimalDigits.contains(c) || c == "." {
                 character = c
                 if c == "." { floatingPoint = true }
             } else {
-                inputStream.unread(character)
+                unreadInputCharacter(character)
                 break
             }
         }
