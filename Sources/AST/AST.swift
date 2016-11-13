@@ -27,7 +27,7 @@ public struct SourceLocation: CustomStringConvertible {
 
     public init(line: Int, column: Int) {
         self.line = line
-        self.column = line
+        self.column = column
     }
 
     public mutating func advanceToNextLine() {
