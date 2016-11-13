@@ -141,7 +141,7 @@ class DriverCompileTests: XCTestCase {
         let driver = Driver(outputStream: output)
         _ = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        XCTAssertEqual(output.buffer, "invalid types `Int` and `Float` for arithmetic operation\n")
+        XCTAssertEqual(output.buffer, "main.gaia:2:3: error: invalid types `Int` and `Float` for arithmetic operation\n")
     }
 
     func testInvalidTypesInComparisonOperation() throws {
@@ -153,7 +153,7 @@ class DriverCompileTests: XCTestCase {
         let driver = Driver(outputStream: output)
         _ = try driver.compileAndExecute(inputFile: "main.gaia")
 
-        XCTAssertEqual(output.buffer, "invalid types `Float` and `Void` for comparison operation\n")
+        XCTAssertEqual(output.buffer, "main.gaia:2:5: error: invalid types `Float` and `Void` for comparison operation\n")
     }
 
     static var allTests = [

@@ -123,27 +123,28 @@ final class Lexer {
             return (currentSourceLocation, lexNumericLiteral(firstCharacter: c))
         }
 
-        func lexOperator(_ a: UnicodeScalar, _ aToken: Token, _ bToken: Token) -> Token? {
+        func lexOperator(_ a: UnicodeScalar, _ aToken: Token, _ bToken: Token) -> (SourceLocation, Token)? {
             if let c = character, c == a {
+                let location = currentSourceLocation
                 let next = readNextInputCharacter()
-                if next == "=" { return bToken }
+                if next == "=" { return (location, bToken) }
                 unreadInputCharacter(next)
-                return aToken
+                return (location, aToken)
             }
             return nil
         }
 
-        if let t = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) {
-            return (currentSourceLocation, t)
+        if let result = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) {
+            return result
         }
-        if let t = lexOperator("!", .not, .binaryOperator(.notEquals)) {
-            return (currentSourceLocation, t)
+        if let result = lexOperator("!", .not, .binaryOperator(.notEquals)) {
+            return result
         }
-        if let t = lexOperator("<", .binaryOperator(.lessThan), .binaryOperator(.lessThanOrEqual)) {
-            return (currentSourceLocation, t)
+        if let result = lexOperator("<", .binaryOperator(.lessThan), .binaryOperator(.lessThanOrEqual)) {
+            return result
         }
-        if let t = lexOperator(">", .binaryOperator(.greaterThan), .binaryOperator(.greaterThanOrEqual)) {
-            return (currentSourceLocation, t)
+        if let result = lexOperator(">", .binaryOperator(.greaterThan), .binaryOperator(.greaterThanOrEqual)) {
+            return result
         }
 
         if let c = character, c == "#" { // comment until end of line

@@ -98,17 +98,21 @@ public final class Driver {
                     default: try handleToplevelExpression()
                 }
             } catch IRGenError.unknownIdentifier(let location, let message) {
-                let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                let relativeFileURL = URL(fileURLWithPath: inputFileName, relativeTo: currentDirectoryURL)
-                outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
+                emitError(message, file: inputFileName, location: location)
                 return false
-            } catch IRGenError.invalidType(let message) {
-                outputStream.write("\(message)\n")
+            } catch IRGenError.invalidType(let location, let message) {
+                emitError(message, file: inputFileName, location: location)
                 return false
             } catch {
                 return false
             }
         }
+    }
+
+    private func emitError(_ message: String, file: String, location: SourceLocation) {
+        let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let relativeFileURL = URL(fileURLWithPath: file, relativeTo: currentDirectoryURL)
+        outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
     }
 
     private func emitModule(as codeGenFileType: LLVMCodeGenFileType, toPath outputFilePath: String) {

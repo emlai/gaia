@@ -80,7 +80,7 @@ public final class Parser {
 
     private func parseIntegerLiteral() -> Expression {
         guard case .integerLiteral(let value)? = token else { fatalError() }
-        let e = IntegerLiteral(value: value)
+        let e = IntegerLiteral(value: value, at: tokenSourceLocation)
         _ = nextToken() // consume the literal
         return e
     }
@@ -88,8 +88,8 @@ public final class Parser {
     private func parseBooleanLiteral() -> Expression {
         let e: Expression
         switch token {
-            case .keyword(.true)?: e = BooleanLiteral(value: true)
-            case .keyword(.false)?: e = BooleanLiteral(value: false)
+            case .keyword(.true)?: e = BooleanLiteral(value: true, at: tokenSourceLocation)
+            case .keyword(.false)?: e = BooleanLiteral(value: false, at: tokenSourceLocation)
             default: preconditionFailure()
         }
         _ = nextToken() // consume the literal
@@ -98,7 +98,7 @@ public final class Parser {
 
     private func parseFloatingPointLiteral() -> Expression {
         guard case .floatingPointLiteral(let value)? = token else { fatalError() }
-        let e = FloatingPointLiteral(value: value)
+        let e = FloatingPointLiteral(value: value, at: tokenSourceLocation)
         _ = nextToken() // consume the literal
         return e
     }
@@ -167,8 +167,10 @@ public final class Parser {
             case .minus?: unaryOperator = .minus
             default: throw ParseError.unexpectedToken("expected unary operator")
         }
+        let operatorLocation = tokenSourceLocation!
         _ = nextToken()
-        return UnaryOperation(operator: unaryOperator, operand: try parseUnaryExpression())
+        return UnaryOperation(operator: unaryOperator, operand: try parseUnaryExpression(),
+                              at: operatorLocation)
     }
 
     private func parseBinOpRHS(precedence: Int, lhs: Expression) throws -> Expression {
@@ -185,6 +187,7 @@ public final class Parser {
             guard let binaryOperator = BinaryOperator(from: token) else {
                 preconditionFailure("expected binary operator")
             }
+            let operatorLocation = tokenSourceLocation!
             _ = nextToken()
 
             // Parse the unary expression after the binary operator.
@@ -198,11 +201,13 @@ public final class Parser {
             }
 
             // Merge lhs and rhs.
-            lhs = BinaryOperation(operator: binaryOperator, leftOperand: lhs, rightOperand: rhs)
+            lhs = BinaryOperation(operator: binaryOperator, leftOperand: lhs,
+                                  rightOperand: rhs, at: operatorLocation)
         }
     }
 
     private func parseIf() throws -> Expression {
+        let ifLocation = tokenSourceLocation!
         _ = nextToken() // consume 'if'
         let condition = try parseExpression()
         try expectToken(oneOf: .keyword(.then), .newline)
@@ -232,6 +237,6 @@ public final class Parser {
             elseBranch.append(try parseExpression())
         }
 
-        return If(condition: condition, then: thenBranch, else: elseBranch)
+        return If(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
     }
 }

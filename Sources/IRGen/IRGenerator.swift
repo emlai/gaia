@@ -3,7 +3,7 @@ import LLVM_C.Core
 import AST
 
 public enum IRGenError: Error {
-    case invalidType(String)
+    case invalidType(location: SourceLocation, message: String)
     case unknownIdentifier(location: SourceLocation, message: String)
     case argumentMismatch(message: String)
 }
@@ -41,11 +41,10 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visit(unaryOperation: UnaryOperation) throws -> LLVMValueRef {
-        let operandValue = try unaryOperation.operand.acceptVisitor(self)
         switch unaryOperation.operator {
-            case .not: return try buildLogicalNegation(of: operandValue)
-            case .plus: return operandValue
-            case .minus: return try buildNumericNegation(of: operandValue)
+            case .not: return try buildLogicalNegation(of: unaryOperation.operand)
+            case .plus: return try unaryOperation.operand.acceptVisitor(self)
+            case .minus: return try buildNumericNegation(of: unaryOperation.operand)
         }
     }
 
@@ -55,20 +54,17 @@ public final class IRGenerator: ASTVisitor {
             return buildAssignment(binaryOperation)
         }
 
-        let left = try binaryOperation.leftOperand.acceptVisitor(self)
-        let right = try binaryOperation.rightOperand.acceptVisitor(self)
-
         switch binaryOperation.operator {
-            case .plus: return try buildBinaryOperation(left, right, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
-            case .minus: return try buildBinaryOperation(left, right, LLVMBuildSub, LLVMBuildFSub, "subtmp")
-            case .multiplication: return try buildBinaryOperation(left, right, LLVMBuildMul, LLVMBuildFMul, "multmp")
-            case .division: return try buildBinaryOperation(left, right, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
-            case .equals: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
-            case .notEquals: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
-            case .greaterThan: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
-            case .lessThan: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
-            case .greaterThanOrEqual: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
-            case .lessThanOrEqual: return try buildComparisonOperation(left, right, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
+            case .plus: return try buildBinaryOperation(binaryOperation, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
+            case .minus: return try buildBinaryOperation(binaryOperation, LLVMBuildSub, LLVMBuildFSub, "subtmp")
+            case .multiplication: return try buildBinaryOperation(binaryOperation, LLVMBuildMul, LLVMBuildFMul, "multmp")
+            case .division: return try buildBinaryOperation(binaryOperation, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
+            case .equals: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
+            case .notEquals: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
+            case .greaterThan: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .lessThan: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
+            case .greaterThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
+            case .lessThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
             default: fatalError("unimplemented binary operator '\(binaryOperation.operator.rawValue)'")
         }
     }
@@ -144,7 +140,8 @@ public final class IRGenerator: ASTVisitor {
         // condition
         let conditionValue = try `if`.condition.acceptVisitor(self)
         if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType("'if' condition requires a Bool expression")
+            throw IRGenError.invalidType(location: `if`.condition.sourceLocation,
+                                         message: "'if' condition requires a Bool expression")
         }
 
         let function = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder))
@@ -170,7 +167,9 @@ public final class IRGenerator: ASTVisitor {
         elseBlock = LLVMGetInsertBlock(builder)
 
         if LLVMTypeOf(lastThenValue) != LLVMTypeOf(lastElseValue) {
-            throw IRGenError.invalidType("'then' and 'else' branches must have same type")
+            throw IRGenError.invalidType(location: `if`.else.last?.sourceLocation
+                                                ?? `if`.then.last!.sourceLocation,
+                                         message: "'then' and 'else' branches must have same type")
         }
 
         // merge
@@ -273,7 +272,9 @@ public final class IRGenerator: ASTVisitor {
         return LLVMBuildUIToFP(builder, boolean, LLVMDoubleTypeInContext(context), "booltmp")
     }
 
-    private func buildNumericNegation(of operand: LLVMValueRef) throws -> LLVMValueRef {
+    private func buildNumericNegation(of expression: Expression) throws -> LLVMValueRef {
+        let operand = try expression.acceptVisitor(self)
+
         switch LLVMTypeOf(operand) {
             case LLVMInt64TypeInContext(context): return LLVMBuildNeg(builder, operand, "negtmp")
             case LLVMDoubleTypeInContext(context): return LLVMBuildFNeg(builder, operand, "negtmp")
@@ -281,9 +282,12 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildLogicalNegation(of operand: LLVMValueRef) throws -> LLVMValueRef {
+    private func buildLogicalNegation(of expression: Expression) throws -> LLVMValueRef {
+        let operand = try expression.acceptVisitor(self)
+
         if LLVMTypeOf(operand) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType("logical negation requires a Bool operand")
+            throw IRGenError.invalidType(location: expression.sourceLocation,
+                                         message: "logical negation requires a Bool operand")
         }
         let falseConstant = LLVMConstInt(LLVMInt1TypeInContext(context), 0, LLVMFalse)
         return LLVMBuildICmp(builder, LLVMIntEQ, operand, falseConstant, "negtmp")
@@ -294,12 +298,15 @@ public final class IRGenerator: ASTVisitor {
     typealias RealComparisonOperationBuildFunc =
         (LLVMBuilderRef, LLVMRealPredicate, LLVMValueRef, LLVMValueRef, UnsafePointer<CChar>) -> LLVMValueRef!
 
-    private func buildComparisonOperation(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef,
+    private func buildComparisonOperation(_ operation: BinaryOperation,
                                           _ integerOperationBuildFunc: IntComparisonOperationBuildFunc,
                                           _ floatingPointOperationBuildFunc: RealComparisonOperationBuildFunc,
                                           _ integerOperationPredicate: LLVMIntPredicate,
                                           _ floatingPointOperationPredicate: LLVMRealPredicate,
                                           _ name: String) throws -> LLVMValueRef {
+        let lhs = try operation.leftOperand.acceptVisitor(self)
+        let rhs = try operation.rightOperand.acceptVisitor(self)
+
         switch (LLVMTypeOf(lhs), LLVMTypeOf(rhs)) {
             case (LLVMInt1Type(), LLVMInt1Type()),
                  (LLVMInt64Type(), LLVMInt64Type()):
@@ -307,24 +314,31 @@ public final class IRGenerator: ASTVisitor {
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
             default:
-                throw IRGenError.invalidType("invalid types `\(lhs.gaiaTypeName)` and `\(rhs.gaiaTypeName)` for comparison operation")
+                throw IRGenError.invalidType(location: operation.sourceLocation,
+                                             message: "invalid types `\(lhs.gaiaTypeName)` and " +
+                                                      "`\(rhs.gaiaTypeName)` for comparison operation")
         }
     }
 
     typealias BinaryOperationBuildFunc =
         (LLVMBuilderRef, LLVMValueRef, LLVMValueRef, UnsafePointer<CChar>) -> LLVMValueRef!
 
-    private func buildBinaryOperation(_ lhs: LLVMValueRef, _ rhs: LLVMValueRef,
+    private func buildBinaryOperation(_ operation: BinaryOperation,
                                       _ integerOperationBuildFunc: BinaryOperationBuildFunc,
                                       _ floatingPointOperationBuildFunc: BinaryOperationBuildFunc,
                                       _ name: String) throws -> LLVMValueRef {
+        let lhs = try operation.leftOperand.acceptVisitor(self)
+        let rhs = try operation.rightOperand.acceptVisitor(self)
+
         switch (LLVMTypeOf(lhs), LLVMTypeOf(rhs)) {
             case (LLVMInt64Type(), LLVMInt64Type()):
                 return integerOperationBuildFunc(builder, lhs, rhs, name)
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
             default:
-                throw IRGenError.invalidType("invalid types `\(lhs.gaiaTypeName)` and `\(rhs.gaiaTypeName)` for arithmetic operation")
+                throw IRGenError.invalidType(location: operation.sourceLocation,
+                                             message: "invalid types `\(lhs.gaiaTypeName)` and " +
+                                                      "`\(rhs.gaiaTypeName)` for arithmetic operation")
         }
     }
 

@@ -28,13 +28,17 @@ public enum BinaryOperator: String {
     }
 }
 
-public protocol Expression: ASTNode { }
+public protocol Expression: ASTNode {
+    var sourceLocation: SourceLocation { get }
+}
 
 public class IntegerLiteral: Expression {
     public let value: Int64
+    public let sourceLocation: SourceLocation
 
-    public init(value: Int64) {
+    public init(value: Int64, at sourceLocation: SourceLocation) {
         self.value = value
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -44,9 +48,11 @@ public class IntegerLiteral: Expression {
 
 public class FloatingPointLiteral: Expression {
     public let value: Float64
+    public let sourceLocation: SourceLocation
 
-    public init(value: Float64) {
+    public init(value: Float64, at sourceLocation: SourceLocation) {
         self.value = value
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -56,9 +62,11 @@ public class FloatingPointLiteral: Expression {
 
 public class BooleanLiteral: Expression {
     public let value: Bool
+    public let sourceLocation: SourceLocation
 
-    public init(value: Bool) {
+    public init(value: Bool, at sourceLocation: SourceLocation) {
         self.value = value
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -83,10 +91,12 @@ public class Variable: Expression {
 public class UnaryOperation: Expression {
     public let `operator`: UnaryOperator
     public let operand: Expression
+    public let sourceLocation: SourceLocation
 
-    public init(operator: UnaryOperator, operand: Expression) {
+    public init(operator: UnaryOperator, operand: Expression, at sourceLocation: SourceLocation) {
         self.operator = `operator`
         self.operand = operand
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -98,11 +108,14 @@ public class BinaryOperation: Expression {
     public let `operator`: BinaryOperator
     public let leftOperand: Expression
     public let rightOperand: Expression
+    public let sourceLocation: SourceLocation /// Location of the operator.
 
-    public init(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression) {
+    public init(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression,
+                at sourceLocation: SourceLocation) {
         self.operator = `operator`
         self.leftOperand = leftOperand
         self.rightOperand = rightOperand
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
@@ -130,11 +143,13 @@ public class If: Expression {
     public let condition: Expression
     public let then: [Expression]
     public let `else`: [Expression]
+    public let sourceLocation: SourceLocation
 
-    public init(condition: Expression, then: [Expression], else: [Expression]) {
+    public init(condition: Expression, then: [Expression], else: [Expression], at sourceLocation: SourceLocation) {
         self.condition = condition
         self.then = then
         self.else = `else`
+        self.sourceLocation = sourceLocation
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
