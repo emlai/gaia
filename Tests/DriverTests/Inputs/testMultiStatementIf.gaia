@@ -1,0 +1,15 @@
+extern func putchar(ch)
+
+func foo(uppercase)
+    if uppercase
+        putchar(65)
+        putchar(66)
+        putchar(67)
+    else
+        putchar(97)
+        putchar(98)
+        putchar(99)
+    end
+end
+
+foo(false)

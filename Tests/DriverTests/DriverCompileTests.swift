@@ -3,176 +3,73 @@ import XCTest
 
 class DriverCompileTests: XCTestCase {
     func testSingleFileCompilationWithExitCode() throws {
-        let program = "func foo(a, b) (a + b) / 2\n\nfoo(6, 8)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(exitStatus, 7)
-        XCTAssert(FileManager.default.fileExists(atPath: "main.gaia"))
-        for file in ["main.gaia.o", "main.gaia.out", "main", "a.out"] {
-            XCTAssert(!FileManager.default.fileExists(atPath: file))
-        }
+        let result = try compileAndExecute(file: "testSingleFileCompilationWithExitCode")
+        XCTAssertEqual(result.programExitStatus, 7)
     }
 
     func testExternAndMultipleStatementsInMainFunction() throws {
-        let program = "extern func putchar(ch)\n\nputchar(71)\nputchar(97)\nputchar(105)\nputchar(97)\n0"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let stdoutPipe = Pipe()
-        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
-
-        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-        XCTAssertEqual(output, "Gaia")
-        XCTAssertEqual(exitStatus, 0)
+        let result = try compileAndExecute(file: "testExternAndMultipleStatementsInMainFunction")
+        XCTAssertEqual(result.programOutput, "Gaia")
+        XCTAssertEqual(result.programExitStatus, 0)
     }
 
     func testCompilationOfMultipleCallsToNonExternFunction() throws {
-        let program = "func foo(x) 1\nfoo(0)\nfoo(0)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(exitStatus, 1)
+        let result = try compileAndExecute(file: "testCompilationOfMultipleCallsToNonExternFunction")
+        XCTAssertEqual(result.programExitStatus, 1)
     }
 
     func testCompilationOfMultilineFunction() throws {
-        let program =
-            "extern func putchar(ch)\n\n" +
-            "func foo(x)\n" +
-            "    putchar(x+15)\n" +
-            "    putchar(x-15)\n" +
-            "end\n\n" +
-            "foo(48)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let stdoutPipe = Pipe()
-        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
-
-        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-        XCTAssertEqual(output, "?!")
-        XCTAssertEqual(exitStatus, 0)
+        let result = try compileAndExecute(file: "testCompilationOfMultilineFunction")
+        XCTAssertEqual(result.programOutput, "?!")
+        XCTAssertEqual(result.programExitStatus, 0)
     }
 
     func testCompilationOfMultilineFunctionWithMultilineIf() throws {
-        let program =
-            "extern func putchar(ch)\n\n" +
-            "func foo(x)\n" +
-            "    if x < 48\n" +
-            "        putchar(x+15)\n" +
-            "    else\n" +
-            "        putchar(x-15)\n" +
-            "    end\n" +
-            "end\n\n" +
-            "foo(48)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let stdoutPipe = Pipe()
-        _ = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
-
-        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-        XCTAssertEqual(output, "!")
+        let result = try compileAndExecute(file: "testCompilationOfMultilineFunctionWithMultilineIf")
+        XCTAssertEqual(result.programOutput, "!")
     }
 
     func testUnknownVariableErrorMessageSourceLocationValidity() throws {
-        let program =
-            "\n\n" +
-            "func foo(x)\n" +
-            "    if y < 48\n" +
-            "        1\n" +
-            "    else\n" +
-            "        2\n" +
-            "    end\n" +
-            "end\n\n" +
-            "foo(48)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let output = TextOutputStreamBuffer()
-        let driver = Driver(outputStream: output)
-        _ = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(output.buffer,
-                       "main.gaia:4:8: error: unknown variable 'y'\n" +
+        let result = try compileAndExecute(file: "testUnknownVariableErrorMessageSourceLocationValidity")
+        XCTAssertEqual(result.compilerOutput,
+                       "testUnknownVariableErrorMessageSourceLocationValidity.gaia:4:8: " +
+                       "error: unknown variable 'y'\n" +
                        "    if y < 48\n" +
                        "       ^\n")
     }
 
     func testMultipleNonExternFunctionCallsInNonExternFunction() throws {
-        let program =
-            "func foo(x) x+1\n" +
-            "func bar(y)\n" +
-            "    foo(y)\n" +
-            "    foo(y)\n" +
-            "end\n\n" +
-            "bar(1)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let exitStatus = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(exitStatus, 2)
+        let result = try compileAndExecute(file: "testMultipleNonExternFunctionCallsInNonExternFunction")
+        XCTAssertEqual(result.programExitStatus, 2)
     }
 
     func testMultiStatementIf() throws {
-        let program =
-            "extern func putchar(ch)\n\n" +
-            "func foo(uppercase)\n" +
-            "    if uppercase\n" +
-            "        putchar(65)\n" +
-            "        putchar(66)\n" +
-            "        putchar(67)\n" +
-            "    else\n" +
-            "        putchar(97)\n" +
-            "        putchar(98)\n" +
-            "        putchar(99)\n" +
-            "    end\n" +
-            "end\n\n" +
-            "foo(false)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let driver = Driver()
-        let stdoutPipe = Pipe()
-        _ = try driver.compileAndExecute(inputFile: "main.gaia", stdoutPipe: stdoutPipe)
-
-        let output = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-        XCTAssertEqual(output, "abc")
+        let result = try compileAndExecute(file: "testMultiStatementIf")
+        XCTAssertEqual(result.programOutput, "abc")
     }
 
     func testInvalidTypesInArithmeticOperation() throws {
-        let program =
-            "extern func putchar(ch)\n" +
-            "5 + 5.0\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let output = TextOutputStreamBuffer()
-        let driver = Driver(outputStream: output)
-        _ = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(output.buffer,
-                       "main.gaia:2:3: error: invalid types `Int` and `Float` for arithmetic operation\n" +
+        let result = try compileAndExecute(file: "testInvalidTypesInArithmeticOperation")
+        XCTAssertEqual(result.compilerOutput,
+                       "testInvalidTypesInArithmeticOperation.gaia:2:3: " +
+                       "error: invalid types `Int` and `Float` for arithmetic operation\n" +
                        "5 + 5.0\n" +
                        "  ^\n")
     }
 
     func testInvalidTypesInComparisonOperation() throws {
-        let program =
-            "extern func putchar(ch)\n" +
-            "5.0 != putchar(0)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let output = TextOutputStreamBuffer()
-        let driver = Driver(outputStream: output)
-        _ = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(output.buffer,
-                       "main.gaia:2:5: error: invalid types `Float` and `Void` for comparison operation\n" +
+        let result = try compileAndExecute(file: "testInvalidTypesInComparisonOperation")
+        XCTAssertEqual(result.compilerOutput,
+                       "testInvalidTypesInComparisonOperation.gaia:2:5: " +
+                       "error: invalid types `Float` and `Void` for comparison operation\n" +
                        "5.0 != putchar(0)\n" +
                        "    ^\n")
     }
 
     func testArgumentMismatchError() throws {
-        let program = "func foo(a) !!b\nfoo(false, 1)\n"
-        try program.write(toFile: "main.gaia", atomically: false, encoding: .utf8)
-        let output = TextOutputStreamBuffer()
-        let driver = Driver(outputStream: output)
-        _ = try driver.compileAndExecute(inputFile: "main.gaia")
-
-        XCTAssertEqual(output.buffer, "main.gaia: error: wrong number of arguments, expected 1\n")
+        let result = try compileAndExecute(file: "testArgumentMismatchError")
+        XCTAssertEqual(result.compilerOutput,
+                       "testArgumentMismatchError.gaia: error: wrong number of arguments, expected 1\n")
     }
 
     static var allTests = [
@@ -196,4 +93,32 @@ class TextOutputStreamBuffer: TextOutputStream {
     public func write(_ string: String) {
         buffer += string
     }
+}
+
+private struct CompileAndExecuteResult {
+    let compilerOutput: String
+    let programOutput: String?
+    let programExitStatus: Int32?
+}
+
+/// Convenience wrapper around `Driver.compileAndExecute`. Returns the exit status.
+private func compileAndExecute(file fileNameWithoutExtension: String) throws -> CompileAndExecuteResult {
+    let inputsDirectoryPath = URL(fileURLWithPath: #file).deletingLastPathComponent().path + "/Inputs"
+    if !FileManager.default.changeCurrentDirectoryPath(inputsDirectoryPath) { fatalError() }
+
+    let compilerOutput = TextOutputStreamBuffer()
+    let programOutputPipe = Pipe()
+    let driver = Driver(outputStream: compilerOutput)
+    let programExitStatus = try driver.compileAndExecute(inputFile: fileNameWithoutExtension + ".gaia",
+                                                         stdoutPipe: programOutputPipe)
+    let programOutput: String?
+    if programExitStatus != nil {
+        programOutput = String(data: programOutputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+    } else {
+        programOutput = nil
+    }
+
+    return CompileAndExecuteResult(compilerOutput: compilerOutput.buffer,
+                                   programOutput: programOutput,
+                                   programExitStatus: programExitStatus)
 }

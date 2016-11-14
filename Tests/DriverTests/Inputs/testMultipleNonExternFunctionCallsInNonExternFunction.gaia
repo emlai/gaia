@@ -1,0 +1,8 @@
+func foo(x) x + 1
+
+func bar(y)
+    foo(y)
+    foo(y)
+end
+
+bar(1)

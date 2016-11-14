@@ -1,0 +1,8 @@
+extern func putchar(ch)
+
+func foo(x)
+    putchar(x + 15)
+    putchar(x - 15)
+end
+
+foo(48)

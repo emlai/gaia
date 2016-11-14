@@ -1,0 +1,2 @@
+func foo(a) !!b
+foo(false, 1)

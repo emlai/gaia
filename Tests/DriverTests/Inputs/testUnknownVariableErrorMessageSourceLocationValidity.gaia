@@ -1,0 +1,11 @@
+
+
+func foo(x)
+    if y < 48
+        1
+    else
+        2
+    end
+end
+
+foo(48)

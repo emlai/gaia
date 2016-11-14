@@ -1,0 +1,2 @@
+extern func putchar(ch)
+5 + 5.0

@@ -1,0 +1,7 @@
+extern func putchar(ch)
+
+putchar(71)
+putchar(97)
+putchar(105)
+putchar(97)
+0
