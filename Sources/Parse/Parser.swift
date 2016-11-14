@@ -1,7 +1,7 @@
 import Foundation
 import AST
 
-enum ParseError: Error {
+public enum ParseError: Error {
     case unexpectedToken(String)
 }
 
@@ -23,15 +23,22 @@ public final class Parser {
         return token
     }
 
-    private func expectToken(oneOf expected: Token..., _ message: String? = nil) throws {
+    public func skipLine() {
+        while token != .newline {
+            _ = nextToken()
+        }
+    }
+
+    private func expectToken(oneOf expected: [Token], _ message: String? = nil) throws {
         if !expected.contains(token) {
-            let message = message ?? "expected \(expected)"
-            throw ParseError.unexpectedToken(message)
+            throw ParseError.unexpectedToken(message ?? "expected one of \(expected)")
         }
     }
 
     private func expectToken(_ expected: Token, _ message: String? = nil) throws {
-        try expectToken(oneOf: expected)
+        if token != expected {
+            throw ParseError.unexpectedToken(message ?? "expected \(expected)")
+        }
     }
 
     func parseFunctionPrototype() throws -> FunctionPrototype {
@@ -147,7 +154,7 @@ public final class Parser {
             case .keyword(.true)?, .keyword(.false)?: return parseBooleanLiteral()
             case .keyword(.if)?: return try parseIf()
             case .leftParenthesis?: return try parseParenthesizedExpression()
-            default: fatalError()
+            default: throw ParseError.unexpectedToken("unexpected \(token!)")
         }
     }
 
@@ -210,7 +217,8 @@ public final class Parser {
         let ifLocation = tokenSourceLocation!
         _ = nextToken() // consume 'if'
         let condition = try parseExpression()
-        try expectToken(oneOf: .keyword(.then), .newline)
+        try expectToken(oneOf: [.keyword(.then), .newline],
+                        "expected `then` or newline after `if` condition")
         var thenBranch = [Expression]()
         var elseBranch = [Expression]()
 

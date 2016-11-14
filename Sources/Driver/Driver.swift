@@ -103,19 +103,32 @@ public final class Driver {
             } catch IRGenError.invalidType(let location, let message) {
                 emitError(message, file: inputFileName, location: location)
                 return false
+            } catch IRGenError.argumentMismatch(let message) {
+                emitError(message, file: inputFileName, location: nil)
+                return false
+            } catch ParseError.unexpectedToken(let message) {
+                emitError(message, file: inputFileName, location: nil)
+                return false
             } catch {
+                emitError("\(error)", file: inputFileName, location: nil)
                 return false
             }
         }
     }
 
-    private func emitError(_ message: String, file: String, location: SourceLocation) {
+    private func emitError(_ message: String, file: String, location: SourceLocation?) {
         let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let relativeFileURL = URL(fileURLWithPath: file, relativeTo: currentDirectoryURL)
-        outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
-        if let fileContents = try? String(contentsOfFile: file) {
-            let line = fileContents.components(separatedBy: .newlines)[location.line - 1]
-            outputStream.write("\(line)\n\(String(repeating: " ", count: location.column - 1))^\n")
+
+        if let location = location {
+            outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
+
+            if let fileContents = try? String(contentsOfFile: file) {
+                let line = fileContents.components(separatedBy: .newlines)[location.line - 1]
+                outputStream.write("\(line)\n\(String(repeating: " ", count: location.column - 1))^\n")
+            }
+        } else {
+            outputStream.write("\(relativeFileURL.relativePath): error: \(message)\n")
         }
     }
 

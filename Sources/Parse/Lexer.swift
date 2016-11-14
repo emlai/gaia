@@ -12,7 +12,7 @@ public enum Keyword: String {
     case `false`
 }
 
-public enum Token: Equatable {
+public enum Token: Equatable, CustomStringConvertible {
     case eof
     case newline
     case identifier(String)
@@ -56,6 +56,25 @@ public enum Token: Equatable {
             case (.minus, .minus): return true
             case (.binaryOperator(let a), .binaryOperator(let b)): return a == b
             default: return false
+        }
+    }
+
+    /// A textual representation of this token.
+    public var description: String {
+        switch self {
+            case .eof: return "EOF"
+            case .newline: return "newline"
+            case .identifier(let value): return "`\(value)`"
+            case .integerLiteral(let value): return "`\(value)`"
+            case .floatingPointLiteral(let value): return "`\(value)`"
+            case .leftParenthesis: return "`(`"
+            case .rightParenthesis: return "`)`"
+            case .comma: return "`,`"
+            case .keyword(let keyword): return "`\(keyword)`"
+            case .not: return "`!`"
+            case .plus: return "`+`"
+            case .minus: return "`-`"
+            case .binaryOperator(let op): return "`\(op)`"
         }
     }
 }

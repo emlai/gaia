@@ -50,10 +50,18 @@ public final class REPL {
                 }
             } catch IRGenError.unknownIdentifier(_, let message) {
                 outputStream.write("\(message)\n")
+                parser.skipLine()
             } catch IRGenError.invalidType(_, let message) {
                 outputStream.write("\(message)\n")
+                parser.skipLine()
+            } catch IRGenError.argumentMismatch(let message) {
+                outputStream.write("\(message)\n")
+                parser.skipLine()
+            } catch ParseError.unexpectedToken(let message) {
+                outputStream.write("\(message)\n")
+                parser.skipLine()
             } catch {
-                _ = parser.nextToken() // Skip token for error recovery.
+                parser.skipLine()
             }
             count += 1
         }

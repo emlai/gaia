@@ -61,6 +61,7 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "if false then 666 else 777\n", producesOutput: "777\n")
         XCTAssert(replInput: "if false then 666 else true\n", producesOutput: "'then' and 'else' branches must have same type\n")
         XCTAssert(replInput: "if 0 then 666 else 777\n", producesOutput: "'if' condition requires a Bool expression\n")
+        XCTAssert(replInput: "if false 666 else 777\n", producesOutput: "expected `then` or newline after `if` condition\n")
     }
 
     func testSimpleMultilineIfExpression() {
@@ -99,6 +100,12 @@ class BasicREPLTests: XCTestCase {
         }
     }
 
+    func testArgumentMismatchError() {
+        XCTAssert(replInput: "func foo(a,b) a-b\nfoo(1)\n", producesOutput: "wrong number of arguments, expected 2\n")
+        XCTAssert(replInput: "func foo(a,b) a-b\nfoo()\n", producesOutput: "wrong number of arguments, expected 2\n")
+        XCTAssert(replInput: "func answer() 42\nanswer(false)\n", producesOutput: "wrong number of arguments, expected 0\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -115,6 +122,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleFunctionWithParameters", testSimpleFunctionWithParameters),
         ("testSimpleFunctionWithParametersOfVariousTypes", testSimpleFunctionWithParametersOfVariousTypes),
         ("testExternCFunctionWithoutReturnValue", testExternCFunctionWithoutReturnValue),
+        ("testArgumentMismatchError", testArgumentMismatchError),
     ]
 }
 
