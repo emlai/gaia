@@ -356,20 +356,28 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func appendToMainFunction(_ expression: Expression) throws {
-        var mainFunction = LLVMGetNamedFunction(module, "main")
-
-        // Create main function if it doesn't exist.
-        if mainFunction == nil {
-            let mainFunctionType = LLVMFunctionType(LLVMInt32Type(), nil, 0, LLVMFalse)
-            mainFunction = LLVMAddFunction(module, "main", mainFunctionType)
-            LLVMAppendBasicBlock(mainFunction, "entry")
-        }
-
-        if let returnInstruction = LLVMGetLastInstruction(LLVMGetLastBasicBlock(mainFunction)) {
+        if let returnInstruction = LLVMGetLastInstruction(LLVMGetLastBasicBlock(getMainFunction())) {
             LLVMInstructionEraseFromParent(returnInstruction)
         }
-        LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(mainFunction))
+        LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(getMainFunction()))
         LLVMBuildRet(builder, try expression.acceptVisitor(self))
+    }
+
+    /// Creates a `return 0` statement at the end of `main` if it doesn't already have a return statement.
+    public func appendImplicitZeroReturnToMainFunction() {
+        if LLVMGetLastInstruction(LLVMGetLastBasicBlock(getMainFunction())) != nil { return }
+        LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(getMainFunction()))
+        LLVMBuildRet(builder, LLVMConstInt(LLVMInt64Type(), 0, LLVMFalse))
+    }
+
+    private func getMainFunction() -> LLVMValueRef {
+        if let mainFunction = LLVMGetNamedFunction(module, "main") { return mainFunction }
+
+        // Create main function if it doesn't exist.
+        let mainFunctionType = LLVMFunctionType(LLVMInt32Type(), nil, 0, LLVMFalse)
+        let mainFunction = LLVMAddFunction(module, "main", mainFunctionType)!
+        LLVMAppendBasicBlock(mainFunction, "entry")
+        return mainFunction
     }
 }
 

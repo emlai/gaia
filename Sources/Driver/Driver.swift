@@ -133,6 +133,8 @@ public final class Driver {
     }
 
     private func emitModule(as codeGenFileType: LLVMCodeGenFileType, toPath outputFilePath: String) {
+        irGenerator.appendImplicitZeroReturnToMainFunction()
+
         var errorMessage: UnsafeMutablePointer<CChar>? = nil
         if LLVMTargetMachineEmitToFile(targetMachine, module,
                                        UnsafeMutablePointer<CChar>(mutating: outputFilePath),

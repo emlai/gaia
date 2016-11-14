@@ -72,6 +72,13 @@ class DriverCompileTests: XCTestCase {
                        "testArgumentMismatchError.gaia: error: wrong number of arguments, expected 1\n")
     }
 
+    func testEmptyMainFunction() throws {
+        let result = try compileAndExecute(file: "testEmptyMainFunction")
+        XCTAssertEqual(result.programExitStatus, 0)
+        let result2 = try compileAndExecute(file: "testEmptyMainFunction2")
+        XCTAssertEqual(result2.programExitStatus, 0)
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -84,6 +91,7 @@ class DriverCompileTests: XCTestCase {
         ("testInvalidTypesInArithmeticOperation", testInvalidTypesInArithmeticOperation),
         ("testInvalidTypesInComparisonOperation", testInvalidTypesInComparisonOperation),
         ("testArgumentMismatchError", testArgumentMismatchError),
+        ("testEmptyMainFunction", testEmptyMainFunction),
     ]
 }
 
