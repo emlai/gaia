@@ -42,7 +42,7 @@ public final class IRGenerator: ASTVisitor {
     public func visit(binaryOperation: BinaryOperation) throws -> LLVMValueRef {
         // Special case for '=' because we don't want to emit lhs as an expression.
         if (binaryOperation.operator == .assignment) {
-            return buildAssignment(binaryOperation)
+            return try buildAssignment(binaryOperation)
         }
 
         switch binaryOperation.operator {
@@ -358,9 +358,21 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildAssignment(_ binaryOperation: BinaryOperation) -> LLVMValueRef {
-        fatalError("unimplemented")
-        // TODO
+    private func buildAssignment(_ binaryOperation: BinaryOperation) throws -> LLVMValueRef {
+        guard let lhs = binaryOperation.leftOperand as? Variable else {
+            fatalError("left operand of `=` must be a variable")
+        }
+
+        let rhs = try binaryOperation.rightOperand.acceptVisitor(self)
+
+        if namedValues[lhs.name] != nil {
+            throw IRGenError.redefinition(location: binaryOperation.leftOperand.sourceLocation,
+                                          message: "redefinition of `\(lhs.name)`")
+        }
+
+        let alloca = LLVMBuildAlloca(builder, LLVMTypeOf(rhs), lhs.name)
+        namedValues[lhs.name] = alloca
+        return LLVMBuildStore(builder, rhs, alloca)
     }
 
     private func createEntryBlockAlloca(for function: LLVMValueRef, name: String, type: LLVMTypeRef) -> LLVMValueRef {

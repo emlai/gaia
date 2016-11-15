@@ -5,6 +5,7 @@ public enum IRGenError: Error {
     case invalidType(location: SourceLocation, message: String)
     case unknownIdentifier(location: SourceLocation, message: String)
     case argumentMismatch(message: String)
+    case redefinition(location: SourceLocation, message: String)
 }
 
 let LLVMFalse: LLVMBool = 0

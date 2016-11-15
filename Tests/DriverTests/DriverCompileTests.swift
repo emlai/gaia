@@ -98,6 +98,19 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result2.compilerOutput, "testBlockComment2.gaia: error: expected `*/` before EOF\n")
     }
 
+    func testVariableDefinition() throws {
+        let result = try compileAndExecute(file: "testVariableDefinition")
+        XCTAssertEqual(result.programExitStatus, 2)
+    }
+
+    func testVariableRedefinitionError() throws {
+        let result = try compileAndExecute(file: "testVariableRedefinitionError")
+        XCTAssertEqual(result.compilerOutput,
+                       "testVariableRedefinitionError.gaia:2:1: error: redefinition of `foo`\n" +
+                       "foo = true\n" +
+                       "^\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -113,6 +126,8 @@ class DriverCompileTests: XCTestCase {
         ("testDeclaredReturnTypeWithRecursiveFunction", testDeclaredReturnTypeWithRecursiveFunction),
         ("testEmptyMainFunction", testEmptyMainFunction),
         ("testBlockComment", testBlockComment),
+        ("testVariableDefinition", testVariableDefinition),
+        ("testVariableRedefinitionError", testVariableRedefinitionError),
     ]
 }
 

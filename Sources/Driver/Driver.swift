@@ -106,6 +106,9 @@ public final class Driver {
             } catch IRGenError.argumentMismatch(let message) {
                 emitError(message, file: inputFileName, location: nil)
                 return false
+            } catch IRGenError.redefinition(let location, let message) {
+                emitError(message, file: inputFileName, location: location)
+                return false
             } catch ParseError.unexpectedToken(let message) {
                 emitError(message, file: inputFileName, location: nil)
                 return false
