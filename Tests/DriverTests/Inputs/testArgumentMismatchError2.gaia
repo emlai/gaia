@@ -1,0 +1,2 @@
+func foo(a Float) a
+foo(0)

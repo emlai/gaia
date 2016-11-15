@@ -53,8 +53,14 @@ public final class Parser {
 
         var parameters = [Parameter]()
         while case .identifier(let parameterName) = nextToken() {
-            parameters.append(Parameter(name: parameterName))
-            if nextToken() != .comma { break }
+            switch nextToken() {
+                case .identifier(let typeName):
+                    parameters.append(Parameter(name: parameterName, type: typeName))
+                    _ = nextToken() // consume parameter type
+                default:
+                    parameters.append(Parameter(name: parameterName, type: nil))
+            }
+            if token != .comma { break }
         }
 
         try expectToken(.rightParenthesis, "expected ',' or ')' in parameter list")

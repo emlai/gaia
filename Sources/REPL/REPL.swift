@@ -83,7 +83,7 @@ public final class REPL {
         let prototype = FunctionPrototype(name: "__anon_expr", parameters: [])
         let function = Function(prototype: prototype, body: [expression])
         irGenerator.registerFunctionDefinition(function)
-        irGenerator.argumentTypes = []
+        irGenerator.arguments = []
         let ir = try function.acceptVisitor(irGenerator)
 
         // Get the type of the expression.

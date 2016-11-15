@@ -70,6 +70,12 @@ class DriverCompileTests: XCTestCase {
         let result = try compileAndExecute(file: "testArgumentMismatchError")
         XCTAssertEqual(result.compilerOutput,
                        "testArgumentMismatchError.gaia: error: wrong number of arguments, expected 1\n")
+
+        let result2 = try compileAndExecute(file: "testArgumentMismatchError2")
+        XCTAssertEqual(result2.compilerOutput,
+                       "testArgumentMismatchError2.gaia:2:5: error: invalid argument type `Int`, expected `Float`\n" +
+                       "foo(0)\n" +
+                       "    ^\n")
     }
 
     func testEmptyMainFunction() throws {

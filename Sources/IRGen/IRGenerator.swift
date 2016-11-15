@@ -11,6 +11,11 @@ public enum IRGenError: Error {
 let LLVMFalse: LLVMBool = 0
 let LLVMTrue: LLVMBool = 1
 
+public struct Argument {
+    let type: LLVMTypeRef
+    let sourceLocation: SourceLocation
+}
+
 /// Generates LLVM IR code based on the abstract syntax tree.
 public final class IRGenerator: ASTVisitor {
     private let context: LLVMContextRef
@@ -21,7 +26,7 @@ public final class IRGenerator: ASTVisitor {
     private var returnType: LLVMTypeRef?
     public var functionPassManager: LLVMPassManagerRef?
     public var module: LLVMModuleRef?
-    public var argumentTypes: [LLVMTypeRef]? // Used to pass function arguments to visitor functions.
+    public var arguments: [Argument]? // Used to pass function arguments to visitor functions.
 
     public init(context: LLVMContextRef) {
         self.context = context
@@ -95,11 +100,13 @@ public final class IRGenerator: ASTVisitor {
         }
 
         let insertBlockBackup = LLVMGetInsertBlock(builder)
-        self.argumentTypes = argumentValues.map { LLVMTypeOf($0) }
+        self.arguments = zip(argumentValues, functionCall.arguments).map {
+            Argument(type: LLVMTypeOf($0.0), sourceLocation: $0.1.sourceLocation)
+        }
 
         let callee: LLVMValueRef
         if let function = nonExternFunction {
-            callee = try getInstantiation(of: function, for: argumentTypes!)
+            callee = try getInstantiation(of: function, for: arguments!)
         } else {
             self.returnType = LLVMVoidType() // TODO: Support non-void extern functions.
             callee = try LLVMGetNamedFunction(module, functionCall.functionName) ?? prototype.acceptVisitor(self)
@@ -112,15 +119,17 @@ public final class IRGenerator: ASTVisitor {
 
     /// Returns an instantiation of the given function for the given parameter types,
     /// building a new concrete function if it has not yet been instantiated.
-    private func getInstantiation(of function: Function, for parameterTypes: [LLVMTypeRef]) throws -> LLVMValueRef {
+    /// Returns `nil` if the function cannot be instantiated for the given parameter types,
+    /// e.g. because of conflicting parameter type constraints.
+    private func getInstantiation(of function: Function, for arguments: [Argument]) throws -> LLVMValueRef {
         if let generated = LLVMGetNamedFunction(module, function.prototype.name) {
-            if LLVMGetParamTypes(LLVMGetElementType(LLVMTypeOf(generated))) == parameterTypes {
+            if LLVMGetParamTypes(LLVMGetElementType(LLVMTypeOf(generated))) == arguments.map({ $0.type }) {
                 return generated
             }
         }
 
         // Instantiate the function with the given parameter types.
-        self.argumentTypes = parameterTypes
+        self.arguments = arguments
         return try function.acceptVisitor(self)
     }
 
@@ -184,13 +193,13 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visit(function: Function) throws -> LLVMValueRef {
-        let argumentTypes = self.argumentTypes!
-        var (llvmFunction, body) = try buildFunctionBody(of: function, argumentTypes: argumentTypes)
+        let arguments = self.arguments!
+        var (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
         returnType = LLVMTypeOf(body.last!)
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
-        (llvmFunction, body) = try buildFunctionBody(of: function, argumentTypes: argumentTypes)
+        (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
 
         if LLVMTypeOf(body.last!) == LLVMVoidType() {
             LLVMBuildRetVoid(builder)
@@ -202,10 +211,24 @@ public final class IRGenerator: ASTVisitor {
         return llvmFunction
     }
 
-    public func visit(prototype: FunctionPrototype) -> LLVMValueRef {
-        var parameterTypes = argumentTypes!.map { Optional.some($0) }
-        let functionType = LLVMFunctionType(returnType, &parameterTypes,
-                                            UInt32(parameterTypes.count), LLVMFalse)
+    public func visit(prototype: FunctionPrototype) throws -> LLVMValueRef {
+        var actualParameterTypes = [LLVMTypeRef?]()
+
+        for (argument, declaredParameter) in zip(arguments!, prototype.parameters) {
+            if let declaredType = declaredParameter.type {
+                let type = LLVMTypeRef(gaiaTypeName: declaredType)! // TODO: error handling
+                if argument.type != type {
+                    let message = "invalid argument type `\(argument.type.gaiaTypeName)`, expected `\(declaredType)`"
+                    throw IRGenError.invalidType(location: argument.sourceLocation, message: message)
+                }
+                actualParameterTypes.append(type)
+            } else {
+                actualParameterTypes.append(argument.type)
+            }
+        }
+
+        let functionType = LLVMFunctionType(returnType, &actualParameterTypes,
+                                            UInt32(actualParameterTypes.count), LLVMFalse)
         let function = LLVMAddFunction(module, prototype.name, functionType)
         let parameterValues = LLVMGetParams(function!)
 
@@ -226,13 +249,17 @@ public final class IRGenerator: ASTVisitor {
 
     /// Searches `module` for an existing function declaration with the given name,
     /// or, if it doesn't find one, generates a new one from `functionDefinitions`.
-    func lookupFunction(named functionName: String, argumentTypes: [LLVMTypeRef]) throws -> LLVMValueRef? {
+    func lookupFunction(named functionName: String, arguments: [Argument]) throws -> LLVMValueRef? {
         // First, see if the function has already been added to the current module.
-        if let function = LLVMGetNamedFunction(module, functionName) { return function }
+        if let function = LLVMGetNamedFunction(module, functionName) {
+            if LLVMGetParamTypes(LLVMGetElementType(LLVMTypeOf(function))) == arguments.map({ $0.type }) {
+                return function
+            }
+        }
 
         // If not, check whether we can codegen the declaration from some existing prototype.
         if let astFunction = functionDefinitions[functionName] {
-            self.argumentTypes = argumentTypes
+            self.arguments = arguments
             let function = try astFunction.prototype.acceptVisitor(self)
             assert(LLVMGetValueKind(function) == LLVMFunctionValueKind)
             return function
@@ -249,9 +276,9 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildFunctionBody(of astFunction: Function, argumentTypes: [LLVMTypeRef]) throws
+    private func buildFunctionBody(of astFunction: Function, arguments: [Argument]) throws
         -> (function: LLVMValueRef, body: [LLVMValueRef]) {
-        let llvmFunction = try lookupFunction(named: astFunction.prototype.name, argumentTypes: argumentTypes)!
+        let llvmFunction = try lookupFunction(named: astFunction.prototype.name, arguments: arguments)!
         let basicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, "entry")
         LLVMPositionBuilderAtEnd(builder, basicBlock)
         let namedValuesBackup = namedValues
@@ -315,8 +342,8 @@ public final class IRGenerator: ASTVisitor {
                 return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
             default:
                 throw IRGenError.invalidType(location: operation.sourceLocation,
-                                             message: "invalid types `\(lhs.gaiaTypeName)` and " +
-                                                      "`\(rhs.gaiaTypeName)` for comparison operation")
+                                             message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                      "`\(LLVMTypeOf(rhs).gaiaTypeName)` for comparison operation")
         }
     }
 
@@ -337,8 +364,8 @@ public final class IRGenerator: ASTVisitor {
                 return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
             default:
                 throw IRGenError.invalidType(location: operation.sourceLocation,
-                                             message: "invalid types `\(lhs.gaiaTypeName)` and " +
-                                                      "`\(rhs.gaiaTypeName)` for arithmetic operation")
+                                             message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                      "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
         }
     }
 
@@ -401,10 +428,10 @@ extension LLVMValueRef {
     }
 }
 
-extension LLVMValueRef {
+extension LLVMTypeRef {
     /// The Gaia type name corresponding to the LLVM type of this value.
     var gaiaTypeName: String {
-        switch LLVMTypeOf(self) {
+        switch self {
             case LLVMVoidType(): return "Void"
             case LLVMInt1Type(): return "Bool"
             case LLVMInt8Type(): return "Int8"
@@ -413,7 +440,26 @@ extension LLVMValueRef {
             case LLVMInt64Type(): return "Int"
             case LLVMFloatType(): return "Float32"
             case LLVMDoubleType(): return "Float"
-            default: fatalError("unsupported type")
+            default:
+                let typeName = LLVMPrintTypeToString(self)
+                defer { LLVMDisposeMessage(typeName) }
+                fatalError("unsupported type `\(typeName)`")
+        }
+    }
+}
+
+extension LLVMTypeRef {
+    init?(gaiaTypeName: String) {
+        switch gaiaTypeName {
+            case "Void": self = LLVMVoidType()
+            case "Bool": self = LLVMInt1Type()
+            case "Int8": self = LLVMInt8Type()
+            case "Int16": self = LLVMInt16Type()
+            case "Int32": self = LLVMInt32Type()
+            case "Int64", "Int": self = LLVMInt64Type()
+            case "Float32": self = LLVMFloatType()
+            case "Float64", "Float": self = LLVMDoubleType()
+            default: return nil
         }
     }
 }
