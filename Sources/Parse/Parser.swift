@@ -64,9 +64,18 @@ public final class Parser {
         }
 
         try expectToken(.rightParenthesis, "expected ',' or ')' in parameter list")
-        _ = nextToken()
 
-        return FunctionPrototype(name: functionName, parameters: parameters)
+        let returnType: String?
+        if nextToken() == .arrow {
+            switch nextToken() {
+                case .identifier(let typeName): returnType = typeName; _ = nextToken()
+                default: throw ParseError.unexpectedToken("expected return type after `->`")
+            }
+        } else {
+            returnType = nil
+        }
+
+        return FunctionPrototype(name: functionName, parameters: parameters, returnType: returnType)
     }
 
     public func parseFunctionDefinition() throws -> Function {

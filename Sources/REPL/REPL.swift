@@ -80,7 +80,7 @@ public final class REPL {
     private func handleToplevelExpression() throws {
         // Evaluate a top-level expression into an anonymous function.
         let expression = try parser.parseExpression()
-        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [])
+        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: nil)
         let function = Function(prototype: prototype, body: [expression])
         irGenerator.registerFunctionDefinition(function)
         irGenerator.arguments = []

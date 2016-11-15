@@ -21,6 +21,7 @@ public enum Token: Equatable, CustomStringConvertible {
     case leftParenthesis
     case rightParenthesis
     case comma
+    case arrow
     case keyword(Keyword)
     case not
     case plus
@@ -50,6 +51,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.leftParenthesis, .leftParenthesis): return true
             case (.rightParenthesis, .rightParenthesis): return true
             case (.comma, .comma): return true
+            case (.arrow, .arrow): return true
             case (.keyword(let a), .keyword(let b)): return a == b
             case (.not, .not): return true
             case (.plus, .plus): return true
@@ -70,6 +72,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case .leftParenthesis: return "`(`"
             case .rightParenthesis: return "`)`"
             case .comma: return "`,`"
+            case .arrow: return "`->`"
             case .keyword(let keyword): return "`\(keyword)`"
             case .not: return "`!`"
             case .plus: return "`+`"
@@ -181,7 +184,12 @@ final class Lexer {
             case ")"?: return (currentSourceLocation, .rightParenthesis)
             case ","?: return (currentSourceLocation, .comma)
             case "+"?: return (currentSourceLocation, .plus)
-            case "-"?: return (currentSourceLocation, .minus)
+            case "-"?:
+                let location = currentSourceLocation
+                let next = readNextInputCharacter()
+                if next == ">" { return (location, .arrow) }
+                unreadInputCharacter(next)
+                return (location, .minus)
             case "*"?: return (currentSourceLocation, .binaryOperator(.multiplication))
             case "/"?: return (currentSourceLocation, .binaryOperator(.division))
             default: preconditionFailure()

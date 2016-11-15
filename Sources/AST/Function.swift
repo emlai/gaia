@@ -15,10 +15,12 @@ public final class Function: ASTNode {
 public final class FunctionPrototype: ASTNode {
     public let name: String
     public let parameters: [Parameter]
+    public let returnType: String?
 
-    public init(name: String, parameters: [Parameter]) {
+    public init(name: String, parameters: [Parameter], returnType: String?) {
         self.name = name
         self.parameters = parameters
+        self.returnType = returnType
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {

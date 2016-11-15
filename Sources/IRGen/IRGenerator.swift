@@ -213,6 +213,9 @@ public final class IRGenerator: ASTVisitor {
             }
         }
 
+        if let declaredReturnType = prototype.returnType {
+            returnType = LLVMTypeRef(gaiaTypeName: declaredReturnType)! // TODO: error handling
+        }
         let functionType = LLVMFunctionType(returnType, &actualParameterTypes,
                                             UInt32(actualParameterTypes.count), LLVMFalse)
         let function = LLVMAddFunction(module, prototype.name, functionType)

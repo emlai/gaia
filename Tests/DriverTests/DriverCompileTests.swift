@@ -78,6 +78,11 @@ class DriverCompileTests: XCTestCase {
                        "    ^\n")
     }
 
+    func testDeclaredReturnTypeWithRecursiveFunction() throws {
+        let result = try compileAndExecute(file: "testDeclaredReturnTypeWithRecursiveFunction")
+        XCTAssertEqual(result.programExitStatus, 24)
+    }
+
     func testEmptyMainFunction() throws {
         let result = try compileAndExecute(file: "testEmptyMainFunction")
         XCTAssertEqual(result.programExitStatus, 0)
@@ -97,6 +102,7 @@ class DriverCompileTests: XCTestCase {
         ("testInvalidTypesInArithmeticOperation", testInvalidTypesInArithmeticOperation),
         ("testInvalidTypesInComparisonOperation", testInvalidTypesInComparisonOperation),
         ("testArgumentMismatchError", testArgumentMismatchError),
+        ("testDeclaredReturnTypeWithRecursiveFunction", testDeclaredReturnTypeWithRecursiveFunction),
         ("testEmptyMainFunction", testEmptyMainFunction),
     ]
 }
