@@ -123,7 +123,7 @@ final class Lexer {
         inputStream.unread(character)
     }
 
-    func lex() -> (SourceLocation, Token) {
+    func lex() throws -> (SourceLocation, Token) {
         var character: UnicodeScalar? // `nil` on EOF
 
         repeat {
@@ -169,13 +169,13 @@ final class Lexer {
             return result
         }
 
-        if let c = character, c == "#" { // comment until end of line
-            while true {
-                character = readNextInputCharacter()
-                guard let c = character else { break }
-                guard CharacterSet.newlines.contains(c) else { break }
+        if let c = character, c == "/" {
+            let next = readNextInputCharacter()
+            if next == "*" { // `/*` == start of block comment
+                try skipBlockComment()
+                return try lex() // TODO: remove recursion
             }
-            if character != nil { return lex() } // TODO: remove recursion
+            unreadInputCharacter(next)
         }
 
         switch character {
@@ -239,6 +239,30 @@ final class Lexer {
             return .floatingPointLiteral(Float64(String(numericLiteral))!)
         } else {
             return .integerLiteral(Int64(String(numericLiteral))!)
+        }
+    }
+
+    private func skipBlockComment() throws {
+        while true {
+            guard let first = readNextInputCharacter() else {
+                throw ParseError.unexpectedToken("expected `*/` before EOF")
+            }
+            if first == "/" { // Handle nested block comments
+                guard let second = readNextInputCharacter() else {
+                    throw ParseError.unexpectedToken("expected `*/` before EOF")
+                }
+                if second == "*" { // start of nested block comment
+                    try skipBlockComment()
+                    continue
+                }
+                unreadInputCharacter(second)
+                continue
+            }
+            if first != "*" { continue }
+            guard let second = readNextInputCharacter() else {
+                throw ParseError.unexpectedToken("expected `*/` before EOF")
+            }
+            if second == "/" { return } // `*/` == end of block comment
         }
     }
 }

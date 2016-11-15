@@ -90,7 +90,7 @@ public final class Driver {
 
         while true {
             do {
-                switch parser!.nextToken() {
+                switch try parser!.nextToken() {
                     case .eof: return true
                     case .newline: break
                     case .keyword(.func): try handleFunctionDefinition()

@@ -16,16 +16,16 @@ public final class Parser {
         tokenSourceLocation = nil
     }
 
-    public func nextToken() -> Token {
-        let (tokenSourceLocation, token) = lexer.lex()
+    public func nextToken() throws -> Token {
+        let (tokenSourceLocation, token) = try lexer.lex()
         self.tokenSourceLocation = tokenSourceLocation
         self.token = token
         return token
     }
 
-    public func skipLine() {
+    public func skipLine() throws {
         while token != .newline {
-            _ = nextToken()
+            _ = try nextToken()
         }
     }
 
@@ -42,21 +42,21 @@ public final class Parser {
     }
 
     func parseFunctionPrototype() throws -> FunctionPrototype {
-        _ = nextToken() // consume 'func'
+        _ = try nextToken() // consume 'func'
 
         guard case .identifier(let functionName)? = token else {
             throw ParseError.unexpectedToken("expected function name in prototype")
         }
 
-        _ = nextToken()
+        _ = try nextToken()
         try expectToken(.leftParenthesis, "expected '(' in prototype")
 
         var parameters = [Parameter]()
-        while case .identifier(let parameterName) = nextToken() {
-            switch nextToken() {
+        while case .identifier(let parameterName) = try nextToken() {
+            switch try nextToken() {
                 case .identifier(let typeName):
                     parameters.append(Parameter(name: parameterName, type: typeName))
-                    _ = nextToken() // consume parameter type
+                    _ = try nextToken() // consume parameter type
                 default:
                     parameters.append(Parameter(name: parameterName, type: nil))
             }
@@ -66,9 +66,9 @@ public final class Parser {
         try expectToken(.rightParenthesis, "expected ',' or ')' in parameter list")
 
         let returnType: String?
-        if nextToken() == .arrow {
-            switch nextToken() {
-                case .identifier(let typeName): returnType = typeName; _ = nextToken()
+        if try nextToken() == .arrow {
+            switch try nextToken() {
+                case .identifier(let typeName): returnType = typeName; _ = try nextToken()
                 default: throw ParseError.unexpectedToken("expected return type after `->`")
             }
         } else {
@@ -84,7 +84,7 @@ public final class Parser {
 
         if token == .newline {
             // Multi-line function
-            while nextToken() != .keyword(.end) {
+            while try nextToken() != .keyword(.end) {
                 body.append(try parseExpression())
             }
         } else {
@@ -96,40 +96,40 @@ public final class Parser {
     }
 
     public func parseExternFunctionDeclaration() throws -> FunctionPrototype {
-        _ = nextToken() // consume 'extern'
+        _ = try nextToken() // consume 'extern'
         return try parseFunctionPrototype()
     }
 
-    private func parseIntegerLiteral() -> Expression {
+    private func parseIntegerLiteral() throws -> Expression {
         guard case .integerLiteral(let value)? = token else { fatalError() }
         let e = IntegerLiteral(value: value, at: tokenSourceLocation)
-        _ = nextToken() // consume the literal
+        _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseBooleanLiteral() -> Expression {
+    private func parseBooleanLiteral() throws -> Expression {
         let e: Expression
         switch token {
             case .keyword(.true)?: e = BooleanLiteral(value: true, at: tokenSourceLocation)
             case .keyword(.false)?: e = BooleanLiteral(value: false, at: tokenSourceLocation)
             default: preconditionFailure()
         }
-        _ = nextToken() // consume the literal
+        _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseFloatingPointLiteral() -> Expression {
+    private func parseFloatingPointLiteral() throws -> Expression {
         guard case .floatingPointLiteral(let value)? = token else { fatalError() }
         let e = FloatingPointLiteral(value: value, at: tokenSourceLocation)
-        _ = nextToken() // consume the literal
+        _ = try nextToken() // consume the literal
         return e
     }
 
     private func parseParenthesizedExpression() throws -> Expression {
-        _ = nextToken() // consume '('
+        _ = try nextToken() // consume '('
         let e = try parseExpression()
         try expectToken(.rightParenthesis)
-        _ = nextToken() // consume ')'
+        _ = try nextToken() // consume ')'
         return e
     }
 
@@ -140,7 +140,7 @@ public final class Parser {
 
         let identifierSourceLocation = tokenSourceLocation!
 
-        if nextToken() != .leftParenthesis {
+        if try nextToken() != .leftParenthesis {
             // It's a variable.
             return Variable(name: identifier, at: identifierSourceLocation)
         }
@@ -148,25 +148,25 @@ public final class Parser {
         // It's a function call.
         var arguments = [Expression]()
 
-        if nextToken() != .rightParenthesis {
+        if try nextToken() != .rightParenthesis {
             while true {
                 let argument = try parseExpression()
                 arguments.append(argument)
                 if token == .rightParenthesis { break }
                 try expectToken(.comma, "expected ')' or ',' in argument list")
-                _ = nextToken()
+                _ = try nextToken()
             }
         }
-        _ = nextToken() // consume ')'
+        _ = try nextToken() // consume ')'
         return FunctionCall(functionName: identifier, arguments: arguments, at: identifierSourceLocation)
     }
 
     private func parsePrimaryExpression() throws -> Expression {
         switch token {
             case .identifier?: return try parseIdentifier()
-            case .integerLiteral?: return parseIntegerLiteral()
-            case .floatingPointLiteral?: return parseFloatingPointLiteral()
-            case .keyword(.true)?, .keyword(.false)?: return parseBooleanLiteral()
+            case .integerLiteral?: return try parseIntegerLiteral()
+            case .floatingPointLiteral?: return try parseFloatingPointLiteral()
+            case .keyword(.true)?, .keyword(.false)?: return try parseBooleanLiteral()
             case .keyword(.if)?: return try parseIf()
             case .leftParenthesis?: return try parseParenthesizedExpression()
             default: throw ParseError.unexpectedToken("unexpected \(token!)")
@@ -190,7 +190,7 @@ public final class Parser {
             default: throw ParseError.unexpectedToken("expected unary operator")
         }
         let operatorLocation = tokenSourceLocation!
-        _ = nextToken()
+        _ = try nextToken()
         return UnaryOperation(operator: unaryOperator, operand: try parseUnaryExpression(),
                               at: operatorLocation)
     }
@@ -210,7 +210,7 @@ public final class Parser {
                 preconditionFailure("expected binary operator")
             }
             let operatorLocation = tokenSourceLocation!
-            _ = nextToken()
+            _ = try nextToken()
 
             // Parse the unary expression after the binary operator.
             var rhs = try parseUnaryExpression()
@@ -230,7 +230,7 @@ public final class Parser {
 
     private func parseIf() throws -> Expression {
         let ifLocation = tokenSourceLocation!
-        _ = nextToken() // consume 'if'
+        _ = try nextToken() // consume 'if'
         let condition = try parseExpression()
         try expectToken(oneOf: [.keyword(.then), .newline],
                         "expected `then` or newline after `if` condition")
@@ -239,24 +239,24 @@ public final class Parser {
 
         if token == .newline {
             // Multi-line if
-            while nextToken() != .keyword(.else) {
+            while try nextToken() != .keyword(.else) {
                 thenBranch.append(try parseExpression())
                 try expectToken(.newline)
             }
-            _ = nextToken() // consume 'else'
+            _ = try nextToken() // consume 'else'
             try expectToken(.newline)
-            while nextToken() != .keyword(.end) {
+            while try nextToken() != .keyword(.end) {
                 elseBranch.append(try parseExpression())
                 try expectToken(.newline)
             }
-            _ = nextToken() // consume 'end'
+            _ = try nextToken() // consume 'end'
             try expectToken(.newline)
         } else {
             // One-line if
-            _ = nextToken() // consume 'then'
+            _ = try nextToken() // consume 'then'
             thenBranch.append(try parseExpression())
             try expectToken(.keyword(.else))
-            _ = nextToken() // consume 'else'
+            _ = try nextToken() // consume 'else'
             elseBranch.append(try parseExpression())
         }
 

@@ -41,7 +41,7 @@ public final class REPL {
         while true {
             infoOutputStream.write("\(count)> ")
             do {
-                switch parser.nextToken() {
+                switch try parser.nextToken() {
                     case .eof: return
                     case .newline: break
                     case .keyword(.func): try handleFunctionDefinition()
@@ -50,18 +50,18 @@ public final class REPL {
                 }
             } catch IRGenError.unknownIdentifier(_, let message) {
                 outputStream.write("\(message)\n")
-                parser.skipLine()
+                try? parser.skipLine()
             } catch IRGenError.invalidType(_, let message) {
                 outputStream.write("\(message)\n")
-                parser.skipLine()
+                try? parser.skipLine()
             } catch IRGenError.argumentMismatch(let message) {
                 outputStream.write("\(message)\n")
-                parser.skipLine()
+                try? parser.skipLine()
             } catch ParseError.unexpectedToken(let message) {
                 outputStream.write("\(message)\n")
-                parser.skipLine()
+                try? parser.skipLine()
             } catch {
-                parser.skipLine()
+                try? parser.skipLine()
             }
             count += 1
         }

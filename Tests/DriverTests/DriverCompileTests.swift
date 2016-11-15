@@ -90,6 +90,14 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result2.programExitStatus, 0)
     }
 
+    func testBlockComment() throws {
+        let result = try compileAndExecute(file: "testBlockComment")
+        XCTAssertEqual(result.programExitStatus, 2)
+
+        let result2 = try compileAndExecute(file: "testBlockComment2")
+        XCTAssertEqual(result2.compilerOutput, "testBlockComment2.gaia: error: expected `*/` before EOF\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -104,6 +112,7 @@ class DriverCompileTests: XCTestCase {
         ("testArgumentMismatchError", testArgumentMismatchError),
         ("testDeclaredReturnTypeWithRecursiveFunction", testDeclaredReturnTypeWithRecursiveFunction),
         ("testEmptyMainFunction", testEmptyMainFunction),
+        ("testBlockComment", testBlockComment),
     ]
 }
 
