@@ -106,6 +106,11 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "func answer() 42\nanswer(false)\n", producesOutput: "wrong number of arguments, expected 0\n")
     }
 
+    func testVariableDefinition() {
+        XCTAssert(replInput: "a = 1\na\na\na = 2\na\n", producesOutput: "1\n1\n2\n")
+        XCTAssert(replInput: "a = \"foo\"\na\na\na = \"\"\na\n", producesOutput: "\"foo\"\n\"foo\"\n\"\"\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -123,6 +128,7 @@ class BasicREPLTests: XCTestCase {
         ("testSimpleFunctionWithParametersOfVariousTypes", testSimpleFunctionWithParametersOfVariousTypes),
         ("testExternCFunctionWithoutReturnValue", testExternCFunctionWithoutReturnValue),
         ("testArgumentMismatchError", testArgumentMismatchError),
+        ("testVariableDefinition", testVariableDefinition),
     ]
 }
 

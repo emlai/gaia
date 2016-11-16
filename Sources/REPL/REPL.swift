@@ -12,6 +12,7 @@ public final class REPL {
     private let parser: Parser
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
+    private var variables: [String: Expression]
     private var globalModule: LLVMModuleRef?
     private var executionEngine: LLVMExecutionEngineRef?
     private let jit: GaiaJITRef
@@ -29,6 +30,7 @@ public final class REPL {
         parser = Parser(readingFrom: inputStream)
         astPrinter = ASTPrinter(printingTo: outputStream)
         irGenerator = IRGenerator(context: LLVMGetGlobalContext())
+        variables = [:]
         initModuleAndFunctionPassManager()
     }
 
@@ -69,8 +71,17 @@ public final class REPL {
     private func handleToplevelExpression() throws {
         // Evaluate a top-level expression into an anonymous function.
         let expression = try parser.parseExpression()
+
+        // Except if it's a variable definition.
+        if let binaryOperation = expression as? BinaryOperation {
+            if binaryOperation.operator == .assignment {
+                handleVariableDefinition(binaryOperation)
+                return
+            }
+        }
+
         let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: nil)
-        let function = Function(prototype: prototype, body: [expression])
+        let function = Function(prototype: prototype, body: variables.map { $0.value } + [expression])
         irGenerator.registerFunctionDefinition(function)
         irGenerator.arguments = []
         let ir = try function.acceptVisitor(irGenerator)
@@ -95,10 +106,17 @@ public final class REPL {
         GaiaJITRemoveModule(jit, moduleHandle)
     }
 
+    private func handleVariableDefinition(_ assignment: BinaryOperation) {
+        assert(assignment.operator == .assignment)
+        guard let variable = assignment.leftOperand as? Variable else { fatalError() }
+        variables[variable.name] = assignment
+    }
+
     typealias VoidFunction = @convention(c) () -> Void
     typealias BoolFunction = @convention(c) () -> CBool
     typealias Int64Function = @convention(c) () -> Int64
     typealias DoubleFunction = @convention(c) () -> Double
+    typealias StringFunction = @convention(c) () -> UnsafePointer<Int8>
 
     private func evaluate(_ function: UnsafeRawPointer, type: LLVMTypeRef) -> String {
         switch type {
@@ -107,6 +125,11 @@ public final class REPL {
             case LLVMInt64Type(): return String(unsafeBitCast(function, to: Int64Function.self)())
             case LLVMDoubleType(): return String(unsafeBitCast(function, to: DoubleFunction.self)())
             default:
+                if LLVMGetTypeKind(type) == LLVMPointerTypeKind
+                && LLVMGetElementType(type) == LLVMInt8Type() {
+                    return "\"\(String(cString: unsafeBitCast(function, to: StringFunction.self)()))\""
+                }
+
                 let typeName = LLVMPrintTypeToString(type)
                 defer { LLVMDisposeMessage(typeName) }
                 return "unknown type '\(String(cString: typeName!))'"
