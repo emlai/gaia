@@ -1,11 +1,29 @@
 import LLVM_C.Core
 import AST
 
-public enum IRGenError: Error {
+public enum IRGenError: SourceCodeError {
     case invalidType(location: SourceLocation, message: String)
     case unknownIdentifier(location: SourceLocation, message: String)
     case argumentMismatch(message: String)
     case redefinition(location: SourceLocation, message: String)
+
+    public var location: SourceLocation? {
+        switch self {
+            case .invalidType(let location, _), .unknownIdentifier(let location, _),
+                 .redefinition(let location, _):
+                return location
+            case .argumentMismatch:
+                return nil
+        }
+    }
+
+    public var description: String {
+        switch self {
+            case .invalidType(_, let message), .unknownIdentifier(_, let message),
+                 .redefinition(_, let message), .argumentMismatch(let message):
+                return message
+        }
+    }
 }
 
 let LLVMFalse: LLVMBool = 0

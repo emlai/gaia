@@ -40,3 +40,7 @@ public struct SourceLocation: CustomStringConvertible {
         column += 1
     }
 }
+
+public protocol SourceCodeError: Error, CustomStringConvertible {
+    var location: SourceLocation? { get }
+}

@@ -97,43 +97,27 @@ public final class Driver {
                     case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
-            } catch IRGenError.unknownIdentifier(let location, let message) {
-                emitError(message, file: inputFileName, location: location)
-                return false
-            } catch IRGenError.invalidType(let location, let message) {
-                emitError(message, file: inputFileName, location: location)
-                return false
-            } catch IRGenError.argumentMismatch(let message) {
-                emitError(message, file: inputFileName, location: nil)
-                return false
-            } catch IRGenError.redefinition(let location, let message) {
-                emitError(message, file: inputFileName, location: location)
-                return false
-            } catch ParseError.unexpectedToken(let message) {
-                emitError(message, file: inputFileName, location: nil)
-                return false
-            } catch ParseError.unterminatedStringLiteral(let location) {
-                emitError("unterminated string literal", file: inputFileName, location: location)
             } catch {
-                emitError("\(error)", file: inputFileName, location: nil)
+                emitError(error, file: inputFileName)
                 return false
             }
         }
     }
 
-    private func emitError(_ message: String, file: String, location: SourceLocation?) {
+    private func emitError(_ error: Error, file: String) {
         let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let relativeFileURL = URL(fileURLWithPath: file, relativeTo: currentDirectoryURL)
 
-        if let location = location {
-            outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(message)\n")
-
-            if let fileContents = try? String(contentsOfFile: file) {
+        if let sourceCodeError = error as? SourceCodeError {
+            if let location = sourceCodeError.location, let fileContents = try? String(contentsOfFile: file) {
+                outputStream.write("\(relativeFileURL.relativePath):\(location): error: \(sourceCodeError)\n")
                 let line = fileContents.components(separatedBy: .newlines)[location.line - 1]
                 outputStream.write("\(line)\n\(String(repeating: " ", count: location.column - 1))^\n")
+            } else {
+                outputStream.write("\(relativeFileURL.relativePath): error: \(sourceCodeError)\n")
             }
         } else {
-            outputStream.write("\(relativeFileURL.relativePath): error: \(message)\n")
+            outputStream.write("\(error)")
         }
     }
 

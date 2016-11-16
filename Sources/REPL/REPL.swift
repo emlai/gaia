@@ -48,19 +48,8 @@ public final class REPL {
                     case .keyword(.extern): try handleExternFunctionDeclaration()
                     default: try handleToplevelExpression()
                 }
-            } catch IRGenError.unknownIdentifier(_, let message) {
-                outputStream.write("\(message)\n")
-                try? parser.skipLine()
-            } catch IRGenError.invalidType(_, let message) {
-                outputStream.write("\(message)\n")
-                try? parser.skipLine()
-            } catch IRGenError.argumentMismatch(let message) {
-                outputStream.write("\(message)\n")
-                try? parser.skipLine()
-            } catch ParseError.unexpectedToken(let message) {
-                outputStream.write("\(message)\n")
-                try? parser.skipLine()
             } catch {
+                outputStream.write("\(error)\n")
                 try? parser.skipLine()
             }
             count += 1

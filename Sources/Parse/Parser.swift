@@ -1,9 +1,23 @@
 import Foundation
 import AST
 
-public enum ParseError: Error {
+public enum ParseError: SourceCodeError {
     case unexpectedToken(String)
     case unterminatedStringLiteral(location: SourceLocation)
+
+    public var location: SourceLocation? {
+        switch self {
+            case .unexpectedToken: return nil
+            case .unterminatedStringLiteral(let location): return location
+        }
+    }
+
+    public var description: String {
+        switch self {
+            case .unexpectedToken(let message): return message
+            case .unterminatedStringLiteral: return "unterminated string literal"
+        }
+    }
 }
 
 public final class Parser {
