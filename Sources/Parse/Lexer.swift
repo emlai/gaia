@@ -18,6 +18,7 @@ public enum Token: Equatable, CustomStringConvertible {
     case identifier(String)
     case integerLiteral(Int64)
     case floatingPointLiteral(Float64)
+    case stringLiteral(String)
     case leftParenthesis
     case rightParenthesis
     case comma
@@ -30,7 +31,8 @@ public enum Token: Equatable, CustomStringConvertible {
 
     var isPrimary: Bool {
         switch self {
-            case .eof, .keyword, .integerLiteral, .floatingPointLiteral, .identifier: return true
+            case .eof, .keyword, .integerLiteral, .floatingPointLiteral, .stringLiteral,
+                 .identifier: return true
             default: return false
         }
     }
@@ -48,6 +50,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.newline, .newline): return true
             case (.identifier, .identifier): return true
             case (.integerLiteral, .integerLiteral): return true
+            case (.stringLiteral, .stringLiteral): return true
             case (.leftParenthesis, .leftParenthesis): return true
             case (.rightParenthesis, .rightParenthesis): return true
             case (.comma, .comma): return true
@@ -69,6 +72,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case .identifier(let value): return "`\(value)`"
             case .integerLiteral(let value): return "`\(value)`"
             case .floatingPointLiteral(let value): return "`\(value)`"
+            case .stringLiteral(let value): return "`\"\(value)\"`"
             case .leftParenthesis: return "`(`"
             case .rightParenthesis: return "`)`"
             case .comma: return "`,`"
@@ -143,6 +147,10 @@ final class Lexer {
 
         if let c = character, CharacterSet.decimalDigits.contains(c) {
             return (currentSourceLocation, lexNumericLiteral(firstCharacter: c))
+        }
+
+        if let c = character, c == "\"" {
+            return (currentSourceLocation, try lexStringLiteral())
         }
 
         func lexOperator(_ a: UnicodeScalar, _ aToken: Token, _ bToken: Token) -> (SourceLocation, Token)? {
@@ -239,6 +247,19 @@ final class Lexer {
             return .floatingPointLiteral(Float64(String(numericLiteral))!)
         } else {
             return .integerLiteral(Int64(String(numericLiteral))!)
+        }
+    }
+
+    private func lexStringLiteral() throws -> Token {
+        var value = String.UnicodeScalarView()
+        let startLocation = currentSourceLocation
+
+        while true {
+            guard let character = readNextInputCharacter() else {
+                throw ParseError.unterminatedStringLiteral(location: startLocation)
+            }
+            if character == "\"" { return .stringLiteral(String(value)) }
+            value.append(character)
         }
     }
 

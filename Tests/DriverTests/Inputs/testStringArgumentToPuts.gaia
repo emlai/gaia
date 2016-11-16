@@ -1,0 +1,4 @@
+extern func puts(s String))
+foo = "🦄"
+puts(foo)
+puts("")

@@ -49,9 +49,14 @@ extension LLVMTypeRef {
             case LLVMFloatType(): return "Float32"
             case LLVMDoubleType(): return "Float"
             default:
+                if LLVMGetTypeKind(self) == LLVMPointerTypeKind
+                && LLVMGetElementType(self) == LLVMInt8Type() {
+                    return "String"
+                }
+
                 let typeName = LLVMPrintTypeToString(self)
                 defer { LLVMDisposeMessage(typeName) }
-                fatalError("unsupported type `\(typeName)`")
+                fatalError("unsupported type `\(String(cString: typeName!))`")
         }
     }
 }
@@ -67,6 +72,7 @@ extension LLVMTypeRef {
             case "Int64", "Int": self = LLVMInt64Type()
             case "Float32": self = LLVMFloatType()
             case "Float64", "Float": self = LLVMDoubleType()
+            case "String": self = LLVMPointerType(LLVMInt8Type(), 0)
             default: return nil
         }
     }

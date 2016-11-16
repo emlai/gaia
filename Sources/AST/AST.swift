@@ -11,6 +11,7 @@ public protocol ASTVisitor {
     func visit(integerLiteral: IntegerLiteral) throws -> VisitResult
     func visit(floatingPointLiteral: FloatingPointLiteral) throws -> VisitResult
     func visit(booleanLiteral: BooleanLiteral) throws -> VisitResult
+    func visit(stringLiteral: StringLiteral) throws -> VisitResult
     func visit(if: If) throws -> VisitResult
     func visit(function: Function) throws -> VisitResult
     func visit(prototype: FunctionPrototype) throws -> VisitResult

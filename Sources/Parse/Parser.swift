@@ -3,6 +3,7 @@ import AST
 
 public enum ParseError: Error {
     case unexpectedToken(String)
+    case unterminatedStringLiteral(location: SourceLocation)
 }
 
 public final class Parser {
@@ -125,6 +126,13 @@ public final class Parser {
         return e
     }
 
+    private func parseStringLiteral() throws -> Expression {
+        guard case .stringLiteral(let value)? = token else { fatalError() }
+        let e = StringLiteral(value: value, at: tokenSourceLocation)
+        _ = try nextToken() // consume the literal
+        return e
+    }
+
     private func parseParenthesizedExpression() throws -> Expression {
         _ = try nextToken() // consume '('
         let e = try parseExpression()
@@ -166,6 +174,7 @@ public final class Parser {
             case .identifier?: return try parseIdentifier()
             case .integerLiteral?: return try parseIntegerLiteral()
             case .floatingPointLiteral?: return try parseFloatingPointLiteral()
+            case .stringLiteral?: return try parseStringLiteral()
             case .keyword(.true)?, .keyword(.false)?: return try parseBooleanLiteral()
             case .keyword(.if)?: return try parseIf()
             case .leftParenthesis?: return try parseParenthesizedExpression()

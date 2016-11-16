@@ -112,6 +112,8 @@ public final class Driver {
             } catch ParseError.unexpectedToken(let message) {
                 emitError(message, file: inputFileName, location: nil)
                 return false
+            } catch ParseError.unterminatedStringLiteral(let location) {
+                emitError("unterminated string literal", file: inputFileName, location: location)
             } catch {
                 emitError("\(error)", file: inputFileName, location: nil)
                 return false

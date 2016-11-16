@@ -74,6 +74,20 @@ public class BooleanLiteral: Expression {
     }
 }
 
+public class StringLiteral: Expression {
+    public let value: String
+    public let sourceLocation: SourceLocation
+
+    public init(value: String, at sourceLocation: SourceLocation) {
+        self.value = value
+        self.sourceLocation = sourceLocation
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(stringLiteral: self)
+    }
+}
+
 public class Variable: Expression {
     public let name: String
     public let sourceLocation: SourceLocation

@@ -131,6 +131,10 @@ public final class IRGenerator: ASTVisitor {
         return LLVMConstInt(LLVMInt1TypeInContext(context), booleanLiteral.value ? 1 : 0, LLVMFalse)
     }
 
+    public func visit(stringLiteral: StringLiteral) -> LLVMValueRef {
+        return stringLiteral.value.withCString { LLVMBuildGlobalStringPtr(builder, $0, "") }
+    }
+
     public func visit(if: If) throws -> LLVMValueRef {
         // condition
         let conditionValue = try `if`.condition.acceptVisitor(self)

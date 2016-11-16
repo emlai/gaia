@@ -76,6 +76,12 @@ class DriverCompileTests: XCTestCase {
                        "testArgumentMismatchError2.gaia:2:5: error: invalid argument type `Int`, expected `Float`\n" +
                        "foo(0)\n" +
                        "    ^\n")
+
+        let result3 = try compileAndExecute(file: "testArgumentMismatchError3")
+        XCTAssertEqual(result3.compilerOutput,
+                       "testArgumentMismatchError3.gaia:2:5: error: invalid argument type `String`, expected `Int`\n" +
+                       "foo(\"bar\")\n" +
+                       "    ^\n")
     }
 
     func testDeclaredReturnTypeWithRecursiveFunction() throws {
@@ -111,6 +117,19 @@ class DriverCompileTests: XCTestCase {
                        "^\n")
     }
 
+    func testStringArgumentToPuts() throws {
+        let result = try compileAndExecute(file: "testStringArgumentToPuts")
+        XCTAssertEqual(result.programOutput, "🦄\n\n")
+    }
+
+    func testUnterminatedStringLiteralError() throws {
+        let result = try compileAndExecute(file: "testUnterminatedStringLiteralError")
+        XCTAssertEqual(result.compilerOutput,
+                       "testUnterminatedStringLiteralError.gaia:1:7: error: unterminated string literal\n" +
+                       "foo = \"foo\n" +
+                       "      ^\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -128,6 +147,8 @@ class DriverCompileTests: XCTestCase {
         ("testBlockComment", testBlockComment),
         ("testVariableDefinition", testVariableDefinition),
         ("testVariableRedefinitionError", testVariableRedefinitionError),
+        ("testStringArgumentToPuts", testStringArgumentToPuts),
+        ("testUnterminatedStringLiteralError", testUnterminatedStringLiteralError),
     ]
 }
 
