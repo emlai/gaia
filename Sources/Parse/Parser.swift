@@ -64,26 +64,7 @@ public final class Parser {
         }
 
         _ = try nextToken()
-        try expectToken(.leftParenthesis, "expected '(' in prototype")
-
-        var parameters = [Parameter]()
-        while case .identifier(let parameterName) = try nextToken() {
-            switch try nextToken() {
-                case .colon:
-                    switch try nextToken() {
-                        case .identifier(let typeName):
-                            parameters.append(Parameter(name: parameterName, type: typeName))
-                            _ = try nextToken() // consume parameter type
-                        default:
-                            throw ParseError.unexpectedToken("expected parameter type after `:`")
-                    }
-                default:
-                    parameters.append(Parameter(name: parameterName, type: nil))
-            }
-            if token != .comma { break }
-        }
-
-        try expectToken(.rightParenthesis, "expected ',' or ')' in parameter list")
+        let parameters = try parseParameterList()
 
         let returnType: String?
         if try nextToken() == .arrow {
@@ -96,6 +77,34 @@ public final class Parser {
         }
 
         return FunctionPrototype(name: functionName, parameters: parameters, returnType: returnType)
+    }
+
+    private func parseParameterList() throws -> [Parameter] {
+        var parameters = [Parameter]()
+        try expectToken(.leftParenthesis, "expected '(' in prototype")
+        while try nextToken() != .rightParenthesis {
+            parameters.append(try parseParameter())
+            if token != .comma { break }
+        }
+        try expectToken(.rightParenthesis, "expected ',' or ')' in parameter list")
+        return parameters
+    }
+
+    private func parseParameter() throws -> Parameter {
+        guard case .identifier(let parameterName)? = token else { preconditionFailure() }
+
+        switch try nextToken() {
+            case .colon:
+                switch try nextToken() {
+                    case .identifier(let typeName):
+                        _ = try nextToken() // consume parameter type
+                        return Parameter(name: parameterName, type: typeName)
+                    default:
+                        throw ParseError.unexpectedToken("expected parameter type after `:`")
+                }
+            case .comma, .rightParenthesis: return Parameter(name: parameterName, type: nil)
+            default: throw ParseError.unexpectedToken("unexpected \(token!)")
+        }
     }
 
     public func parseFunctionDefinition() throws -> Function {
