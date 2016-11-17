@@ -82,4 +82,10 @@ public final class ASTPrinter: ASTVisitor {
             try value.acceptVisitor(self)
         }
     }
+
+    public func visit(variableDefinition: VariableDefinition) throws {
+        outputStream.write(variableDefinition.name)
+        outputStream.write(" = ")
+        try variableDefinition.value.acceptVisitor(self)
+    }
 }

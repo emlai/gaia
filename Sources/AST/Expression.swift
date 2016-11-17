@@ -5,7 +5,6 @@ public enum UnaryOperator: String {
 }
 
 public enum BinaryOperator: String {
-    case assignment = "="
     case equals = "=="
     case notEquals = "!="
     case lessThan = "<"
@@ -19,7 +18,6 @@ public enum BinaryOperator: String {
 
     public var precedence: Int {
         switch self {
-            case .assignment: return 1
             case .equals, .notEquals: return 2
             case .lessThan, .lessThanOrEqual, .greaterThan, .greaterThanOrEqual: return 3
             case .plus, .minus: return 4

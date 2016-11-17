@@ -23,6 +23,19 @@ public final class IRGenerator: ASTVisitor {
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
     }
 
+    public func visit(variableDefinition: VariableDefinition) throws -> LLVMValueRef {
+        let value = try variableDefinition.value.acceptVisitor(self)
+
+        if namedValues[variableDefinition.name] != nil {
+            throw IRGenError.redefinition(location: variableDefinition.sourceLocation,
+                                          message: "redefinition of `\(variableDefinition.name)`")
+        }
+
+        let alloca = LLVMBuildAlloca(builder, LLVMTypeOf(value), variableDefinition.name)
+        namedValues[variableDefinition.name] = alloca
+        return LLVMBuildStore(builder, value, alloca)
+    }
+
     public func visit(variable: Variable) throws -> LLVMValueRef {
         guard let namedValue = namedValues[variable.name] else {
             throw IRGenError.unknownIdentifier(location: variable.sourceLocation,
@@ -40,11 +53,6 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visit(binaryOperation: BinaryOperation) throws -> LLVMValueRef {
-        // Special case for '=' because we don't want to emit lhs as an expression.
-        if (binaryOperation.operator == .assignment) {
-            return try buildAssignment(binaryOperation)
-        }
-
         switch binaryOperation.operator {
             case .plus: return try buildBinaryOperation(binaryOperation, LLVMBuildAdd, LLVMBuildFAdd, "addtmp")
             case .minus: return try buildBinaryOperation(binaryOperation, LLVMBuildSub, LLVMBuildFSub, "subtmp")
@@ -56,7 +64,6 @@ public final class IRGenerator: ASTVisitor {
             case .lessThan: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
             case .greaterThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
             case .lessThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
-            default: fatalError("unimplemented binary operator '\(binaryOperation.operator.rawValue)'")
         }
     }
 
@@ -380,23 +387,6 @@ public final class IRGenerator: ASTVisitor {
                                              message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
                                                       "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
         }
-    }
-
-    private func buildAssignment(_ binaryOperation: BinaryOperation) throws -> LLVMValueRef {
-        guard let lhs = binaryOperation.leftOperand as? Variable else {
-            fatalError("left operand of `=` must be a variable")
-        }
-
-        let rhs = try binaryOperation.rightOperand.acceptVisitor(self)
-
-        if namedValues[lhs.name] != nil {
-            throw IRGenError.redefinition(location: binaryOperation.leftOperand.sourceLocation,
-                                          message: "redefinition of `\(lhs.name)`")
-        }
-
-        let alloca = LLVMBuildAlloca(builder, LLVMTypeOf(rhs), lhs.name)
-        namedValues[lhs.name] = alloca
-        return LLVMBuildStore(builder, rhs, alloca)
     }
 
     private func createEntryBlockAlloca(for function: LLVMValueRef, name: String, type: LLVMTypeRef) -> LLVMValueRef {

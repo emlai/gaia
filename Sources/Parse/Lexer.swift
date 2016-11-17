@@ -22,6 +22,7 @@ public enum Token: Equatable, CustomStringConvertible {
     case stringLiteral(String)
     case leftParenthesis
     case rightParenthesis
+    case assignmentOperator
     case colon
     case comma
     case arrow
@@ -55,6 +56,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.stringLiteral, .stringLiteral): return true
             case (.leftParenthesis, .leftParenthesis): return true
             case (.rightParenthesis, .rightParenthesis): return true
+            case (.assignmentOperator, .assignmentOperator): return true
             case (.colon, .colon): return true
             case (.comma, .comma): return true
             case (.arrow, .arrow): return true
@@ -78,6 +80,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case .stringLiteral(let value): return "`\"\(value)\"`"
             case .leftParenthesis: return "`(`"
             case .rightParenthesis: return "`)`"
+            case .assignmentOperator: return "`=`"
             case .colon: return "`:`"
             case .comma: return "`,`"
             case .arrow: return "`->`"
@@ -168,7 +171,7 @@ final class Lexer {
             return nil
         }
 
-        if let result = lexOperator("=", .binaryOperator(.assignment), .binaryOperator(.equals)) {
+        if let result = lexOperator("=", .assignmentOperator, .binaryOperator(.equals)) {
             return result
         }
         if let result = lexOperator("!", .not, .binaryOperator(.notEquals)) {

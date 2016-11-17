@@ -12,7 +12,7 @@ public final class REPL {
     private let parser: Parser
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
-    private var variables: [String: Expression]
+    private var variables: [String: VariableDefinition]
     private var globalModule: LLVMModuleRef?
     private var executionEngine: LLVMExecutionEngineRef?
     private let jit: GaiaJITRef
@@ -69,20 +69,20 @@ public final class REPL {
     }
 
     private func handleToplevelExpression() throws {
-        // Evaluate a top-level expression into an anonymous function.
-        let expression = try parser.parseExpression()
+        // Evaluate a top-level statement into an anonymous function.
+        let statement = try parser.parseStatement()
 
         // Except if it's a variable definition.
-        if let binaryOperation = expression as? BinaryOperation {
-            if binaryOperation.operator == .assignment {
-                handleVariableDefinition(binaryOperation)
-                return
-            }
+        if let variableDefinition = statement as? VariableDefinition {
+            handleVariableDefinition(variableDefinition)
+            return
         }
 
         let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: nil)
         var body = variables.map { $0.value as Statement }
-        body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
+        if let expression = statement as? Expression {
+            body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
+        }
         let function = Function(prototype: prototype, body: body)
         irGenerator.registerFunctionDefinition(function)
         irGenerator.arguments = []
@@ -108,10 +108,8 @@ public final class REPL {
         GaiaJITRemoveModule(jit, moduleHandle)
     }
 
-    private func handleVariableDefinition(_ assignment: BinaryOperation) {
-        assert(assignment.operator == .assignment)
-        guard let variable = assignment.leftOperand as? Variable else { fatalError() }
-        variables[variable.name] = assignment
+    private func handleVariableDefinition(_ variableDefinition: VariableDefinition) {
+        variables[variableDefinition.name] = variableDefinition
     }
 
     typealias VoidFunction = @convention(c) () -> Void

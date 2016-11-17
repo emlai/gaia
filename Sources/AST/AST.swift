@@ -16,6 +16,7 @@ public protocol ASTVisitor {
     func visit(function: Function) throws -> VisitResult
     func visit(prototype: FunctionPrototype) throws -> VisitResult
     func visit(returnStatement: ReturnStatement) throws -> VisitResult
+    func visit(variableDefinition: VariableDefinition) throws -> VisitResult
 }
 
 public struct SourceLocation: CustomStringConvertible {

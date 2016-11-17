@@ -22,19 +22,24 @@ public enum ParseError: SourceCodeError {
 
 public final class Parser {
     private let lexer: Lexer
-    private var token: Token! /// The token currently being processed.
+    private var tokens: [Token]
+    private var token: Token! { /// The token currently being processed.
+        return tokens.last
+    }
     private var tokenSourceLocation: SourceLocation!
 
     public init(readingFrom inputStream: TextInputStream = Stdin()) {
         lexer = Lexer(readFrom: inputStream)
-        token = nil
+        tokens = []
         tokenSourceLocation = nil
     }
 
     public func nextToken() throws -> Token {
+        _ = tokens.popLast()
+        if let top = tokens.last { return top }
         let (tokenSourceLocation, token) = try lexer.lex()
         self.tokenSourceLocation = tokenSourceLocation
-        self.token = token
+        tokens.append(token)
         return token
     }
 
@@ -303,7 +308,17 @@ public final class Parser {
     public func parseStatement() throws -> Statement {
         switch token {
             case .keyword(.return)?: return try parseReturnStatement()
-            default: return try parseExpression()
+            default:
+                if case .identifier(let name)? = token {
+                    let location = tokenSourceLocation!
+                    let next = try nextToken()
+                    if next == .assignmentOperator {
+                        _ = try nextToken() // consume `=`
+                        return VariableDefinition(name: name, value: try parseExpression(), at: location)
+                    }
+                    tokens = [next, .identifier(name)]
+                }
+                return try parseExpression()
         }
     }
 
