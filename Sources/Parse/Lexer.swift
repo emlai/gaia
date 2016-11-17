@@ -22,6 +22,7 @@ public enum Token: Equatable, CustomStringConvertible {
     case stringLiteral(String)
     case leftParenthesis
     case rightParenthesis
+    case colon
     case comma
     case arrow
     case keyword(Keyword)
@@ -54,6 +55,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.stringLiteral, .stringLiteral): return true
             case (.leftParenthesis, .leftParenthesis): return true
             case (.rightParenthesis, .rightParenthesis): return true
+            case (.colon, .colon): return true
             case (.comma, .comma): return true
             case (.arrow, .arrow): return true
             case (.keyword(let a), .keyword(let b)): return a == b
@@ -76,6 +78,7 @@ public enum Token: Equatable, CustomStringConvertible {
             case .stringLiteral(let value): return "`\"\(value)\"`"
             case .leftParenthesis: return "`(`"
             case .rightParenthesis: return "`)`"
+            case .colon: return "`:`"
             case .comma: return "`,`"
             case .arrow: return "`->`"
             case .keyword(let keyword): return "`\(keyword)`"
@@ -191,6 +194,7 @@ final class Lexer {
             case nil: return (currentSourceLocation, .eof)
             case "("?: return (currentSourceLocation, .leftParenthesis)
             case ")"?: return (currentSourceLocation, .rightParenthesis)
+            case ":"?: return (currentSourceLocation, .colon)
             case ","?: return (currentSourceLocation, .comma)
             case "+"?: return (currentSourceLocation, .plus)
             case "-"?:

@@ -69,9 +69,14 @@ public final class Parser {
         var parameters = [Parameter]()
         while case .identifier(let parameterName) = try nextToken() {
             switch try nextToken() {
-                case .identifier(let typeName):
-                    parameters.append(Parameter(name: parameterName, type: typeName))
-                    _ = try nextToken() // consume parameter type
+                case .colon:
+                    switch try nextToken() {
+                        case .identifier(let typeName):
+                            parameters.append(Parameter(name: parameterName, type: typeName))
+                            _ = try nextToken() // consume parameter type
+                        default:
+                            throw ParseError.unexpectedToken("expected parameter type after `:`")
+                    }
                 default:
                     parameters.append(Parameter(name: parameterName, type: nil))
             }

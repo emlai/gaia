@@ -1,4 +1,4 @@
-func foo(a Float)
+func foo(a: Float)
     return a
 end
 
