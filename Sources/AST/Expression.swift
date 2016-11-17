@@ -149,13 +149,13 @@ public class FunctionCall: Expression {
     }
 }
 
-public class If: Expression {
+public class IfExpression: Expression {
     public let condition: Expression
-    public let then: [Statement]
-    public let `else`: [Statement]
+    public let then: Expression
+    public let `else`: Expression
     public let sourceLocation: SourceLocation
 
-    public init(condition: Expression, then: [Statement], else: [Statement], at sourceLocation: SourceLocation) {
+    public init(condition: Expression, then: Expression, else: Expression, at sourceLocation: SourceLocation) {
         self.condition = condition
         self.then = then
         self.else = `else`
@@ -163,6 +163,6 @@ public class If: Expression {
     }
 
     public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        return try visitor.visit(if: self)
+        return try visitor.visit(ifExpression: self)
     }
 }

@@ -142,11 +142,53 @@ public final class IRGenerator: ASTVisitor {
         return stringLiteral.value.withCString { LLVMBuildGlobalStringPtr(builder, $0, "") }
     }
 
-    public func visit(if: If) throws -> LLVMValueRef {
+    public func visit(ifStatement: IfStatement) throws -> LLVMValueRef {
         // condition
-        let conditionValue = try `if`.condition.acceptVisitor(self)
+        let conditionValue = try ifStatement.condition.acceptVisitor(self)
         if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType(location: `if`.condition.sourceLocation,
+            throw IRGenError.invalidType(location: ifStatement.condition.sourceLocation,
+                                         message: "'if' condition requires a Bool expression")
+        }
+
+        let function = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder))
+
+        let thenBlock = LLVMAppendBasicBlockInContext(context, function, "then")
+        let elseBlock = LLVMAppendBasicBlockInContext(context, function, "else")
+
+        LLVMBuildCondBr(builder, conditionValue, thenBlock, elseBlock)
+
+        // then
+        LLVMPositionBuilderAtEnd(builder, thenBlock)
+        let thenValues = try ifStatement.then.map { try $0.acceptVisitor(self) }
+        let lastThenValue = thenValues.last
+
+        // else
+        LLVMPositionBuilderAtEnd(builder, elseBlock)
+        let elseValues = try ifStatement.else.map { try $0.acceptVisitor(self) }
+        let lastElseValue = elseValues.last
+
+        // merge
+        if LLVMGetValueKind(lastThenValue) == LLVMInstructionValueKind
+        && LLVMGetValueKind(lastElseValue) == LLVMInstructionValueKind
+        && LLVMGetInstructionOpcode(lastThenValue) == LLVMRet
+        && LLVMGetInstructionOpcode(lastElseValue) == LLVMRet {
+            // Both branches return, no need for merge block.
+            return lastThenValue! // HACK
+        }
+
+        let mergeBlock = LLVMAppendBasicBlockInContext(context, function, "ifcont")!
+        LLVMPositionBuilderAtEnd(builder, thenBlock)
+        LLVMBuildBr(builder, mergeBlock)
+        LLVMPositionBuilderAtEnd(builder, elseBlock)
+        LLVMBuildBr(builder, mergeBlock)
+        return mergeBlock
+    }
+
+    public func visit(ifExpression: IfExpression) throws -> LLVMValueRef {
+        // condition
+        let conditionValue = try ifExpression.condition.acceptVisitor(self)
+        if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
+            throw IRGenError.invalidType(location: ifExpression.condition.sourceLocation,
                                          message: "'if' condition requires a Bool expression")
         }
 
@@ -159,29 +201,18 @@ public final class IRGenerator: ASTVisitor {
 
         // then
         LLVMPositionBuilderAtEnd(builder, thenBlock)
-        let thenValues = try `if`.then.map { try $0.acceptVisitor(self) }
-        var lastThenValue = thenValues.last
+        var thenValue = Optional.some(try ifExpression.then.acceptVisitor(self))
 
         // else
         LLVMPositionBuilderAtEnd(builder, elseBlock)
-        let elseValues = try `if`.else.map { try $0.acceptVisitor(self) }
-        var lastElseValue = elseValues.last
+        var elseValue = Optional.some(try ifExpression.else.acceptVisitor(self))
 
-        if LLVMTypeOf(lastThenValue) != LLVMTypeOf(lastElseValue) {
-            throw IRGenError.invalidType(location: `if`.else.last?.sourceLocation
-                                                ?? `if`.then.last!.sourceLocation,
+        if LLVMTypeOf(thenValue) != LLVMTypeOf(elseValue) {
+            throw IRGenError.invalidType(location: ifExpression.sourceLocation,
                                          message: "'then' and 'else' branches must have same type")
         }
 
         // merge
-        if LLVMGetValueKind(lastThenValue) == LLVMInstructionValueKind
-        && LLVMGetValueKind(lastElseValue) == LLVMInstructionValueKind
-        && LLVMGetInstructionOpcode(lastThenValue) == LLVMRet
-        && LLVMGetInstructionOpcode(lastElseValue) == LLVMRet {
-            // Both branches return, no need for merge block.
-            return lastThenValue! // HACK
-        }
-
         let mergeBlock = LLVMAppendBasicBlockInContext(context, function, "ifcont")
         LLVMPositionBuilderAtEnd(builder, thenBlock)
         LLVMBuildBr(builder, mergeBlock)
@@ -189,12 +220,12 @@ public final class IRGenerator: ASTVisitor {
         LLVMBuildBr(builder, mergeBlock)
 
         LLVMPositionBuilderAtEnd(builder, mergeBlock)
-        if LLVMTypeOf(lastThenValue) == LLVMVoidType() {
-            return lastThenValue! // HACK
+        if LLVMTypeOf(thenValue) == LLVMVoidType() {
+            return thenValue! // HACK
         }
-        let phi = LLVMBuildPhi(builder, LLVMTypeOf(lastThenValue), "iftmp")
-        LLVMAddIncoming(phi, &lastThenValue, &thenBlock, 1)
-        LLVMAddIncoming(phi, &lastElseValue, &elseBlock, 1)
+        let phi = LLVMBuildPhi(builder, LLVMTypeOf(thenValue), "iftmp")
+        LLVMAddIncoming(phi, &thenValue, &thenBlock, 1)
+        LLVMAddIncoming(phi, &elseValue, &elseBlock, 1)
         return phi!
     }
 
@@ -214,6 +245,7 @@ public final class IRGenerator: ASTVisitor {
 
         if LLVMGetValueKind(body.last!) != LLVMInstructionValueKind
         || LLVMGetInstructionOpcode(body.last!) != LLVMRet {
+            LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(llvmFunction))
             LLVMBuildRetVoid(builder)
         }
         precondition(LLVMVerifyFunction(llvmFunction, LLVMPrintMessageAction) != 1)

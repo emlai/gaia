@@ -22,24 +22,23 @@ public enum ParseError: SourceCodeError {
 
 public final class Parser {
     private let lexer: Lexer
-    private var tokens: [Token]
+    private var tokens: [(SourceLocation, Token)]
     private var token: Token! { /// The token currently being processed.
-        return tokens.last
+        return tokens.last?.1
     }
-    private var tokenSourceLocation: SourceLocation!
+    private var tokenSourceLocation: SourceLocation! {
+        return tokens.last?.0
+    }
 
     public init(readingFrom inputStream: TextInputStream = Stdin()) {
         lexer = Lexer(readFrom: inputStream)
         tokens = []
-        tokenSourceLocation = nil
     }
 
     public func nextToken() throws -> Token {
         _ = tokens.popLast()
-        if let top = tokens.last { return top }
-        let (tokenSourceLocation, token) = try lexer.lex()
-        self.tokenSourceLocation = tokenSourceLocation
-        tokens.append(token)
+        if let top = tokens.last { return top.1 }
+        tokens.append(try lexer.lex())
         return token
     }
 
@@ -209,7 +208,7 @@ public final class Parser {
             case .floatingPointLiteral?: return try parseFloatingPointLiteral()
             case .stringLiteral?: return try parseStringLiteral()
             case .keyword(.true)?, .keyword(.false)?: return try parseBooleanLiteral()
-            case .keyword(.if)?: return try parseIf()
+            case .keyword(.if)?: return try parseIfExpression()
             case .leftParenthesis?: return try parseParenthesizedExpression()
             default: throw ParseError.unexpectedToken("unexpected \(token!)")
         }
@@ -270,56 +269,76 @@ public final class Parser {
         }
     }
 
-    private func parseIf() throws -> Expression {
+    private func parseIfStatement() throws -> Statement {
         let ifLocation = tokenSourceLocation!
         _ = try nextToken() // consume 'if'
         let condition = try parseExpression()
-        try expectToken(oneOf: [.keyword(.then), .newline],
-                        "expected `then` or newline after `if` condition")
+        try expectToken(.newline, "expected `then` or newline after `if` condition")
         var thenBranch = [Statement]()
         var elseBranch = [Statement]()
 
-        if token == .newline {
-            // Multi-line if
-            while try nextToken() != .keyword(.else) {
-                thenBranch.append(try parseStatement())
-                try expectToken(.newline)
-            }
-            _ = try nextToken() // consume 'else'
+        while try nextToken() != .keyword(.else) {
+            thenBranch.append(try parseStatement())
             try expectToken(.newline)
-            while try nextToken() != .keyword(.end) {
-                elseBranch.append(try parseStatement())
-                try expectToken(.newline)
-            }
-            _ = try nextToken() // consume 'end'
-            try expectToken(.newline)
-        } else {
-            // One-line if
-            _ = try nextToken() // consume 'then'
-            thenBranch.append(try parseExpression())
-            try expectToken(.keyword(.else))
-            _ = try nextToken() // consume 'else'
-            elseBranch.append(try parseExpression())
         }
+        _ = try nextToken() // consume 'else'
+        try expectToken(.newline)
+        while try nextToken() != .keyword(.end) {
+            elseBranch.append(try parseStatement())
+            try expectToken(.newline)
+        }
+        _ = try nextToken() // consume 'end'
+        try expectToken(.newline)
 
-        return If(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
+        return IfStatement(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
+    }
+
+    private func parseIfExpression() throws -> Expression {
+        let ifLocation = tokenSourceLocation!
+        _ = try nextToken() // consume 'if'
+        let condition = try parseExpression()
+        try expectToken(.keyword(.then), "expected `then` or newline after `if` condition")
+
+        _ = try nextToken() // consume 'then'
+        let thenBranch = try parseExpression()
+        try expectToken(.keyword(.else))
+        _ = try nextToken() // consume 'else'
+        let elseBranch = try parseExpression()
+
+        return IfExpression(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
     }
 
     public func parseStatement() throws -> Statement {
         switch token {
             case .keyword(.return)?: return try parseReturnStatement()
-            default:
-                if case .identifier(let name)? = token {
-                    let location = tokenSourceLocation!
-                    let next = try nextToken()
-                    if next == .assignmentOperator {
-                        _ = try nextToken() // consume `=`
-                        return VariableDefinition(name: name, value: try parseExpression(), at: location)
-                    }
-                    tokens = [next, .identifier(name)]
+
+            // Handle variable definition.
+            case .identifier(let name)?:
+                let identifierLocation = tokenSourceLocation!
+                let next = try nextToken()
+                let nextLocation = tokenSourceLocation!
+                if next == .assignmentOperator {
+                    _ = try nextToken() // consume `=`
+                    return VariableDefinition(name: name, value: try parseExpression(), at: identifierLocation)
                 }
-                return try parseExpression()
+                tokens = [(nextLocation, next), (identifierLocation, .identifier(name))]
+
+            // Handle if-statement (if-expression will be handled by `parseExpression` below).
+            case .keyword(.if)?:
+                let ifLocation = tokenSourceLocation!
+                var tempTokens = [(SourceLocation, Token)]()
+                repeat {
+                    let nextToken = try self.nextToken()
+                    tempTokens.append((tokenSourceLocation, nextToken))
+                } while tempTokens.last!.1 != .newline && tempTokens.last!.1 != .keyword(.then)
+                tokens = tempTokens.reversed() + [(ifLocation, .keyword(.if))]
+                if tempTokens.last!.1 == .newline { // It's an if-statement.
+                    return try parseIfStatement()
+                }
+
+            default: break
         }
+        return try parseExpression()
     }
 
     private func parseReturnStatement() throws -> ReturnStatement {

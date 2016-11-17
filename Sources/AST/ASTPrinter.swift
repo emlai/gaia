@@ -57,13 +57,22 @@ public final class ASTPrinter: ASTVisitor {
         outputStream.write("\"\(stringLiteral.value)\"")
     }
 
-    public func visit(if: If) throws {
+    public func visit(ifStatement: IfStatement) throws {
         outputStream.write("if ")
-        try `if`.condition.acceptVisitor(self)
+        try ifStatement.condition.acceptVisitor(self)
         outputStream.write(" then ")
-        try `if`.then.forEach { try $0.acceptVisitor(self) }
+        try ifStatement.then.forEach { try $0.acceptVisitor(self) }
         outputStream.write(" else ")
-        try `if`.else.forEach { try $0.acceptVisitor(self) }
+        try ifStatement.else.forEach { try $0.acceptVisitor(self) }
+    }
+
+    public func visit(ifExpression: IfExpression) throws {
+        outputStream.write("if ")
+        try ifExpression.condition.acceptVisitor(self)
+        outputStream.write(" then ")
+        try ifExpression.then.acceptVisitor(self)
+        outputStream.write(" else ")
+        try ifExpression.else.acceptVisitor(self)
     }
 
     public func visit(function: Function) throws {

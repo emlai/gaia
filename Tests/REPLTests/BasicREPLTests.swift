@@ -64,11 +64,16 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "if false 666 else 777\n", producesOutput: "expected `then` or newline after `if` condition\n")
     }
 
-    func testSimpleMultilineIfExpression() {
-        XCTAssert(replInput: "if true\n\t666\nelse\n\t777\nend\n", producesOutput: "666\n")
-        XCTAssert(replInput: "if false\n\t666\nelse\n\t777\nend\n", producesOutput: "777\n")
-        XCTAssert(replInput: "if false\n\t666\nelse\n\ttrue\nend\n", producesOutput: "'then' and 'else' branches must have same type\n")
-        XCTAssert(replInput: "if 0\n\t666\nelse\n\t777\nend\n", producesOutput: "'if' condition requires a Bool expression\n")
+    func testSimpleIfStatement() {
+        var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
+        stdoutBuffer.withUnsafeMutableBufferPointer {
+            setbuf(stdout, $0.baseAddress)
+            XCTAssert(replInput: "extern func puts(s: String)\nif true\n\tputs(\"foo\")\nelse\n\tputs(\"bar\")\nend\n", producesOutput: "\n")
+            XCTAssert(replInput: "extern func puts(s: String)\nif false\n\tputs(\"foo\")\nelse\n\tputs(\"bar\")\nend\n", producesOutput: "\n")
+            XCTAssert(replInput: "extern func puts(s: String)\nif 0\n\tputs(\"a\")\nelse\n\tputs(\"b\")\nend\n", producesOutput: "'if' condition requires a Bool expression\n")
+            XCTAssertEqual(String(cString: $0.baseAddress!), "foo\nbar\n")
+            setbuf(stdout, nil)
+        }
     }
 
     func testSimpleFunctionDefinitionAndCall() {
@@ -122,7 +127,7 @@ class BasicREPLTests: XCTestCase {
         ("testArithmeticExpressionsWithPrecedence", testArithmeticExpressionsWithPrecedence),
         ("testNumericComparisonExpressions", testNumericComparisonExpressions),
         ("testSimpleIfExpression", testSimpleIfExpression),
-        ("testSimpleMultilineIfExpression", testSimpleMultilineIfExpression),
+        ("testSimpleIfStatement", testSimpleIfStatement),
         ("testSimpleFunctionDefinitionAndCall", testSimpleFunctionDefinitionAndCall),
         ("testSimpleFunctionWithParameters", testSimpleFunctionWithParameters),
         ("testSimpleFunctionWithParametersOfVariousTypes", testSimpleFunctionWithParametersOfVariousTypes),

@@ -82,6 +82,8 @@ public final class REPL {
         var body = variables.map { $0.value as Statement }
         if let expression = statement as? Expression {
             body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
+        } else {
+            body.append(statement)
         }
         let function = Function(prototype: prototype, body: body)
         irGenerator.registerFunctionDefinition(function)
