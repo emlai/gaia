@@ -73,13 +73,13 @@ class DriverCompileTests: XCTestCase {
 
         let result2 = try compileAndExecute(file: "testArgumentMismatchError2")
         XCTAssertEqual(result2.compilerOutput,
-                       "testArgumentMismatchError2.gaia:2:5: error: invalid argument type `Int`, expected `Float`\n" +
+                       "testArgumentMismatchError2.gaia:5:5: error: invalid argument type `Int`, expected `Float`\n" +
                        "foo(0)\n" +
                        "    ^\n")
 
         let result3 = try compileAndExecute(file: "testArgumentMismatchError3")
         XCTAssertEqual(result3.compilerOutput,
-                       "testArgumentMismatchError3.gaia:2:5: error: invalid argument type `String`, expected `Int`\n" +
+                       "testArgumentMismatchError3.gaia:5:5: error: invalid argument type `String`, expected `Int`\n" +
                        "foo(\"bar\")\n" +
                        "    ^\n")
     }

@@ -1,6 +1,8 @@
-func foo(a, /*b,*/ c) a/c
+func foo(a, /*b,*/ c)
+    return a/c
+end
 
-foo(4, 2)
+return foo(4, 2)
 /*
-foo(2, //*0,*/ 1)
+return foo(2, //*0,*/ 1)
 */

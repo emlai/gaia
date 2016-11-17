@@ -1,2 +1,5 @@
-func foo(a) !!b
+func foo(a)
+    return !!b
+end
+
 foo(false, 1)

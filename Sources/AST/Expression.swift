@@ -28,9 +28,7 @@ public enum BinaryOperator: String {
     }
 }
 
-public protocol Expression: ASTNode {
-    var sourceLocation: SourceLocation { get }
-}
+public protocol Expression: Statement { }
 
 public class IntegerLiteral: Expression {
     public let value: Int64
@@ -155,11 +153,11 @@ public class FunctionCall: Expression {
 
 public class If: Expression {
     public let condition: Expression
-    public let then: [Expression]
-    public let `else`: [Expression]
+    public let then: [Statement]
+    public let `else`: [Statement]
     public let sourceLocation: SourceLocation
 
-    public init(condition: Expression, then: [Expression], else: [Expression], at sourceLocation: SourceLocation) {
+    public init(condition: Expression, then: [Statement], else: [Statement], at sourceLocation: SourceLocation) {
         self.condition = condition
         self.then = then
         self.else = `else`

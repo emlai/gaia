@@ -10,6 +10,7 @@ public enum Keyword: String {
     case `else`
     case `true`
     case `false`
+    case `return`
 }
 
 public enum Token: Equatable, CustomStringConvertible {

@@ -145,9 +145,9 @@ public final class Driver {
     }
 
     private func handleToplevelExpression() throws {
-        // Add top-level expressions into main function.
-        let expression = try parser!.parseExpression()
-        try irGenerator.appendToMainFunction(expression)
+        // Add top-level statements into main function.
+        let statement = try parser!.parseStatement()
+        try irGenerator.appendToMainFunction(statement)
     }
 
     private func initModuleAndFunctionPassManager(moduleName: String) {

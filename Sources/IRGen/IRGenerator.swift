@@ -147,7 +147,6 @@ public final class IRGenerator: ASTVisitor {
 
         var thenBlock = LLVMAppendBasicBlockInContext(context, function, "then")
         var elseBlock = LLVMAppendBasicBlockInContext(context, function, "else")
-        let mergeBlock = LLVMAppendBasicBlockInContext(context, function, "ifcont")
 
         LLVMBuildCondBr(builder, conditionValue, thenBlock, elseBlock)
 
@@ -155,15 +154,11 @@ public final class IRGenerator: ASTVisitor {
         LLVMPositionBuilderAtEnd(builder, thenBlock)
         let thenValues = try `if`.then.map { try $0.acceptVisitor(self) }
         var lastThenValue = thenValues.last
-        LLVMBuildBr(builder, mergeBlock)
-        thenBlock = LLVMGetInsertBlock(builder)
 
         // else
         LLVMPositionBuilderAtEnd(builder, elseBlock)
         let elseValues = try `if`.else.map { try $0.acceptVisitor(self) }
         var lastElseValue = elseValues.last
-        LLVMBuildBr(builder, mergeBlock)
-        elseBlock = LLVMGetInsertBlock(builder)
 
         if LLVMTypeOf(lastThenValue) != LLVMTypeOf(lastElseValue) {
             throw IRGenError.invalidType(location: `if`.else.last?.sourceLocation
@@ -172,6 +167,20 @@ public final class IRGenerator: ASTVisitor {
         }
 
         // merge
+        if LLVMGetValueKind(lastThenValue) == LLVMInstructionValueKind
+        && LLVMGetValueKind(lastElseValue) == LLVMInstructionValueKind
+        && LLVMGetInstructionOpcode(lastThenValue) == LLVMRet
+        && LLVMGetInstructionOpcode(lastElseValue) == LLVMRet {
+            // Both branches return, no need for merge block.
+            return lastThenValue! // HACK
+        }
+
+        let mergeBlock = LLVMAppendBasicBlockInContext(context, function, "ifcont")
+        LLVMPositionBuilderAtEnd(builder, thenBlock)
+        LLVMBuildBr(builder, mergeBlock)
+        LLVMPositionBuilderAtEnd(builder, elseBlock)
+        LLVMBuildBr(builder, mergeBlock)
+
         LLVMPositionBuilderAtEnd(builder, mergeBlock)
         if LLVMTypeOf(lastThenValue) == LLVMVoidType() {
             return lastThenValue! // HACK
@@ -185,16 +194,20 @@ public final class IRGenerator: ASTVisitor {
     public func visit(function: Function) throws -> LLVMValueRef {
         let arguments = self.arguments!
         var (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
-        returnType = LLVMTypeOf(body.last!)
+
+        if LLVMGetValueKind(body.last!) == LLVMInstructionValueKind
+        && LLVMGetInstructionOpcode(body.last!) == LLVMRet {
+            let index = LLVMGetNumOperands(body.last!) - 1
+            returnType = index < 0 ? LLVMVoidType() : LLVMTypeOf(LLVMGetOperand(body.last, UInt32(index)))
+        }
 
         // Recreate function with correct return type.
         LLVMDeleteFunction(llvmFunction)
         (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
 
-        if LLVMTypeOf(body.last!) == LLVMVoidType() {
+        if LLVMGetValueKind(body.last!) != LLVMInstructionValueKind
+        || LLVMGetInstructionOpcode(body.last!) != LLVMRet {
             LLVMBuildRetVoid(builder)
-        } else {
-            LLVMBuildRet(builder, body.last!)
         }
         precondition(LLVMVerifyFunction(llvmFunction, LLVMPrintMessageAction) != 1)
         LLVMRunFunctionPassManager(functionPassManager, llvmFunction)
@@ -230,6 +243,13 @@ public final class IRGenerator: ASTVisitor {
         }
 
         return function!
+    }
+
+    public func visit(returnStatement: ReturnStatement) throws -> LLVMValueRef {
+        guard let expression = returnStatement.value else { return LLVMBuildRetVoid(builder) }
+        let value = try expression.acceptVisitor(self)
+        if LLVMTypeOf(value) != LLVMVoidType() { return LLVMBuildRet(builder, value) }
+        return LLVMBuildRetVoid(builder) // TODO: don't allow returning void expressions
     }
 
     public func registerFunctionDefinition(_ function: Function) {
@@ -387,12 +407,12 @@ public final class IRGenerator: ASTVisitor {
         return LLVMBuildAlloca(temporaryBuilder, type, name)
     }
 
-    public func appendToMainFunction(_ expression: Expression) throws {
+    public func appendToMainFunction(_ statement: Statement) throws {
         if let returnInstruction = LLVMGetLastInstruction(LLVMGetLastBasicBlock(getMainFunction())) {
             LLVMInstructionEraseFromParent(returnInstruction)
         }
         LLVMPositionBuilderAtEnd(builder, LLVMGetLastBasicBlock(getMainFunction()))
-        LLVMBuildRet(builder, try expression.acceptVisitor(self))
+        LLVMBuildRet(builder, try statement.acceptVisitor(self))
     }
 
     /// Creates a `return 0` statement at the end of `main` if it doesn't already have a return statement.

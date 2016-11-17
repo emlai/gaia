@@ -81,7 +81,9 @@ public final class REPL {
         }
 
         let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: nil)
-        let function = Function(prototype: prototype, body: variables.map { $0.value } + [expression])
+        var body = variables.map { $0.value as Statement }
+        body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
+        let function = Function(prototype: prototype, body: body)
         irGenerator.registerFunctionDefinition(function)
         irGenerator.arguments = []
         let ir = try function.acceptVisitor(irGenerator)

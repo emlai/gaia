@@ -2,9 +2,9 @@
 
 func foo(x)
     if y < 48
-        1
+        return 1
     else
-        2
+        return 2
     end
 end
 

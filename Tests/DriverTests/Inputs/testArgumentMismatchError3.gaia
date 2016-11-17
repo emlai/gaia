@@ -1,2 +1,5 @@
-func foo(a Int) a
+func foo(a Int)
+    return a
+end
+
 foo("bar")

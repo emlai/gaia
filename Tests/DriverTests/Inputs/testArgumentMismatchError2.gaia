@@ -1,2 +1,5 @@
-func foo(a Float) a
+func foo(a Float)
+    return a
+end
+
 foo(0)

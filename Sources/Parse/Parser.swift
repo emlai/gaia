@@ -95,16 +95,16 @@ public final class Parser {
 
     public func parseFunctionDefinition() throws -> Function {
         let prototype = try parseFunctionPrototype()
-        var body = [Expression]()
+        var body = [Statement]()
 
         if token == .newline {
             // Multi-line function
             while try nextToken() != .keyword(.end) {
-                body.append(try parseExpression())
+                body.append(try parseStatement())
             }
         } else {
             // One-line function
-            body.append(try parseExpression())
+            body.append(try parseStatement())
         }
 
         return Function(prototype: prototype, body: body)
@@ -257,19 +257,19 @@ public final class Parser {
         let condition = try parseExpression()
         try expectToken(oneOf: [.keyword(.then), .newline],
                         "expected `then` or newline after `if` condition")
-        var thenBranch = [Expression]()
-        var elseBranch = [Expression]()
+        var thenBranch = [Statement]()
+        var elseBranch = [Statement]()
 
         if token == .newline {
             // Multi-line if
             while try nextToken() != .keyword(.else) {
-                thenBranch.append(try parseExpression())
+                thenBranch.append(try parseStatement())
                 try expectToken(.newline)
             }
             _ = try nextToken() // consume 'else'
             try expectToken(.newline)
             while try nextToken() != .keyword(.end) {
-                elseBranch.append(try parseExpression())
+                elseBranch.append(try parseStatement())
                 try expectToken(.newline)
             }
             _ = try nextToken() // consume 'end'
@@ -284,5 +284,18 @@ public final class Parser {
         }
 
         return If(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
+    }
+
+    public func parseStatement() throws -> Statement {
+        switch token {
+            case .keyword(.return)?: return try parseReturnStatement()
+            default: return try parseExpression()
+        }
+    }
+
+    private func parseReturnStatement() throws -> ReturnStatement {
+        let returnLocation = tokenSourceLocation!
+        _ = try nextToken() // consume 'return'
+        return ReturnStatement(value: try parseExpression(), at: returnLocation)
     }
 }

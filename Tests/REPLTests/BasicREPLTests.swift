@@ -72,22 +72,22 @@ class BasicREPLTests: XCTestCase {
     }
 
     func testSimpleFunctionDefinitionAndCall() {
-        XCTAssert(replInput: "func foo() 666\nfoo()\nfoo()\n", producesOutput: "666\n666\n")
-        XCTAssert(replInput: "func foo() 666 * 777\nfoo()\nfoo()\n", producesOutput: "517482\n517482\n")
-        XCTAssert(replInput: "func foo() if false then 666 else 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
-        XCTAssert(replInput: "func foo() 666\nfunc foo() 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
+        XCTAssert(replInput: "func foo() return 666\nfoo()\nfoo()\n", producesOutput: "666\n666\n")
+        XCTAssert(replInput: "func foo() return 666 * 777\nfoo()\nfoo()\n", producesOutput: "517482\n517482\n")
+        XCTAssert(replInput: "func foo() return if false then 666 else 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
+        XCTAssert(replInput: "func foo() return 666\nfunc foo() return 777\nfoo()\nfoo()\n", producesOutput: "777\n777\n")
     }
 
     func testSimpleFunctionWithParameters() {
-        XCTAssert(replInput: "func foo(a) a * 0.5\nfoo(1.0)\nfoo(2.0)\n", producesOutput: "0.5\n1.0\n")
-        XCTAssert(replInput: "func foo(a, b) a / b\nfoo(1.0, 0.5)\nfoo(0.1, 10.0)\n", producesOutput: "2.0\n0.01\n")
-        XCTAssert(replInput: "func foo(a,b,c) a+b-c\nfoo(1.0,2.0,3.0)\nfoo(-2.0,-1.0,-0.0)\n", producesOutput: "0.0\n-3.0\n")
+        XCTAssert(replInput: "func foo(a) return a * 0.5\nfoo(1.0)\nfoo(2.0)\n", producesOutput: "0.5\n1.0\n")
+        XCTAssert(replInput: "func foo(a, b) return a / b\nfoo(1.0, 0.5)\nfoo(0.1, 10.0)\n", producesOutput: "2.0\n0.01\n")
+        XCTAssert(replInput: "func foo(a,b,c) return a+b-c\nfoo(1.0,2.0,3.0)\nfoo(-2.0,-1.0,-0.0)\n", producesOutput: "0.0\n-3.0\n")
     }
 
     func testSimpleFunctionWithParametersOfVariousTypes() {
-        XCTAssert(replInput: "func foo(a) -a\nfoo(1.0)\nfoo(1)\n", producesOutput: "-1.0\n-1\n")
-        XCTAssert(replInput: "func foo(a, b) a / b\nfoo(1.0, 0.5)\nfoo(2, 2)\n", producesOutput: "2.0\n1\n")
-        XCTAssert(replInput: "func foo(a,b,c) (a==b)!=c\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n", producesOutput: "false\nfalse\n")
+        XCTAssert(replInput: "func foo(a) return -a\nfoo(1.0)\nfoo(1)\n", producesOutput: "-1.0\n-1\n")
+        XCTAssert(replInput: "func foo(a, b) return a / b\nfoo(1.0, 0.5)\nfoo(2, 2)\n", producesOutput: "2.0\n1\n")
+        XCTAssert(replInput: "func foo(a,b,c) return (a==b)!=c\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n", producesOutput: "false\nfalse\n")
     }
 
     func testExternCFunctionWithoutReturnValue() {
@@ -101,9 +101,9 @@ class BasicREPLTests: XCTestCase {
     }
 
     func testArgumentMismatchError() {
-        XCTAssert(replInput: "func foo(a,b) a-b\nfoo(1)\n", producesOutput: "wrong number of arguments, expected 2\n")
-        XCTAssert(replInput: "func foo(a,b) a-b\nfoo()\n", producesOutput: "wrong number of arguments, expected 2\n")
-        XCTAssert(replInput: "func answer() 42\nanswer(false)\n", producesOutput: "wrong number of arguments, expected 0\n")
+        XCTAssert(replInput: "func foo(a,b) return a-b\nfoo(1)\n", producesOutput: "wrong number of arguments, expected 2\n")
+        XCTAssert(replInput: "func foo(a,b) return a-b\nfoo()\n", producesOutput: "wrong number of arguments, expected 2\n")
+        XCTAssert(replInput: "func answer() return 42\nanswer(false)\n", producesOutput: "wrong number of arguments, expected 0\n")
     }
 
     func testVariableDefinition() {

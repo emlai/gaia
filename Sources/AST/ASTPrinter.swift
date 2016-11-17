@@ -74,4 +74,12 @@ public final class ASTPrinter: ASTVisitor {
     public func visit(prototype functionPrototype: FunctionPrototype) throws {
         // TODO
     }
+
+    public func visit(returnStatement: ReturnStatement) throws -> () {
+        outputStream.write("return")
+        if let value = returnStatement.value {
+            outputStream.write(" ")
+            try value.acceptVisitor(self)
+        }
+    }
 }
