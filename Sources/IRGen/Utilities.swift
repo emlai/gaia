@@ -1,7 +1,7 @@
 import LLVM_C.Core
 import AST
 
-public enum IRGenError: SourceCodeError {
+public enum CompileError: SourceCodeError {
     case invalidType(location: SourceLocation, message: String)
     case unknownIdentifier(location: SourceLocation, message: String)
     case argumentMismatch(message: String)

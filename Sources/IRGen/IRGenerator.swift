@@ -27,8 +27,8 @@ public final class IRGenerator: ASTVisitor {
         let value = try variableDefinition.value.acceptVisitor(self)
 
         if namedValues[variableDefinition.name] != nil {
-            throw IRGenError.redefinition(location: variableDefinition.sourceLocation,
-                                          message: "redefinition of `\(variableDefinition.name)`")
+            throw CompileError.redefinition(location: variableDefinition.sourceLocation,
+                                            message: "redefinition of `\(variableDefinition.name)`")
         }
 
         let alloca = LLVMBuildAlloca(builder, LLVMTypeOf(value), variableDefinition.name)
@@ -38,8 +38,8 @@ public final class IRGenerator: ASTVisitor {
 
     public func visit(variable: Variable) throws -> LLVMValueRef {
         guard let namedValue = namedValues[variable.name] else {
-            throw IRGenError.unknownIdentifier(location: variable.sourceLocation,
-                                               message: "unknown variable '\(variable.name)'")
+            throw CompileError.unknownIdentifier(location: variable.sourceLocation,
+                                                 message: "unknown variable '\(variable.name)'")
         }
         return LLVMBuildLoad(builder, namedValue, variable.name)
     }
@@ -77,13 +77,13 @@ public final class IRGenerator: ASTVisitor {
             prototype = function.prototype
             nonExternFunction = function
         } else {
-            throw IRGenError.unknownIdentifier(location: functionCall.sourceLocation,
-                                               message: "unknown function name '\(functionCall.functionName)'")
+            throw CompileError.unknownIdentifier(location: functionCall.sourceLocation,
+                                                 message: "unknown function name '\(functionCall.functionName)'")
         }
 
         let parameterCount = prototype.parameters.count
         if parameterCount != functionCall.arguments.count {
-            throw IRGenError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
+            throw CompileError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
         }
 
         var argumentValues = [LLVMValueRef?]()
@@ -146,8 +146,8 @@ public final class IRGenerator: ASTVisitor {
         // condition
         let conditionValue = try ifStatement.condition.acceptVisitor(self)
         if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType(location: ifStatement.condition.sourceLocation,
-                                         message: "'if' condition requires a Bool expression")
+            throw CompileError.invalidType(location: ifStatement.condition.sourceLocation,
+                                           message: "'if' condition requires a Bool expression")
         }
 
         let function = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder))
@@ -188,8 +188,8 @@ public final class IRGenerator: ASTVisitor {
         // condition
         let conditionValue = try ifExpression.condition.acceptVisitor(self)
         if LLVMTypeOf(conditionValue) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType(location: ifExpression.condition.sourceLocation,
-                                         message: "'if' condition requires a Bool expression")
+            throw CompileError.invalidType(location: ifExpression.condition.sourceLocation,
+                                           message: "'if' condition requires a Bool expression")
         }
 
         let function = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder))
@@ -208,8 +208,8 @@ public final class IRGenerator: ASTVisitor {
         var elseValue = Optional.some(try ifExpression.else.acceptVisitor(self))
 
         if LLVMTypeOf(thenValue) != LLVMTypeOf(elseValue) {
-            throw IRGenError.invalidType(location: ifExpression.sourceLocation,
-                                         message: "'then' and 'else' branches must have same type")
+            throw CompileError.invalidType(location: ifExpression.sourceLocation,
+                                           message: "'then' and 'else' branches must have same type")
         }
 
         // merge
@@ -261,7 +261,7 @@ public final class IRGenerator: ASTVisitor {
                 let type = LLVMTypeRef(gaiaTypeName: declaredType)! // TODO: error handling
                 if argument.type != type {
                     let message = "invalid argument type `\(argument.type.gaiaTypeName)`, expected `\(declaredType)`"
-                    throw IRGenError.invalidType(location: argument.sourceLocation, message: message)
+                    throw CompileError.invalidType(location: argument.sourceLocation, message: message)
                 }
                 actualParameterTypes.append(type)
             } else {
@@ -365,8 +365,8 @@ public final class IRGenerator: ASTVisitor {
         let operand = try expression.acceptVisitor(self)
 
         if LLVMTypeOf(operand) != LLVMInt1TypeInContext(context) {
-            throw IRGenError.invalidType(location: expression.sourceLocation,
-                                         message: "logical negation requires a Bool operand")
+            throw CompileError.invalidType(location: expression.sourceLocation,
+                                           message: "logical negation requires a Bool operand")
         }
         let falseConstant = LLVMConstInt(LLVMInt1TypeInContext(context), 0, LLVMFalse)
         return LLVMBuildICmp(builder, LLVMIntEQ, operand, falseConstant, "negtmp")
@@ -393,9 +393,9 @@ public final class IRGenerator: ASTVisitor {
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
             default:
-                throw IRGenError.invalidType(location: operation.sourceLocation,
-                                             message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
-                                                      "`\(LLVMTypeOf(rhs).gaiaTypeName)` for comparison operation")
+                throw CompileError.invalidType(location: operation.sourceLocation,
+                                               message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                        "`\(LLVMTypeOf(rhs).gaiaTypeName)` for comparison operation")
         }
     }
 
@@ -415,9 +415,9 @@ public final class IRGenerator: ASTVisitor {
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
             default:
-                throw IRGenError.invalidType(location: operation.sourceLocation,
-                                             message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
-                                                      "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
+                throw CompileError.invalidType(location: operation.sourceLocation,
+                                               message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                        "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
         }
     }
 
