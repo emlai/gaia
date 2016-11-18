@@ -135,6 +135,11 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "hello\n")
     }
 
+    func testCoreLibraryFunctionCall() throws {
+        let result = try compileAndExecute(file: "testCoreLibraryFunction")
+        XCTAssertEqual(result.programOutput, "Hello, World!\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -155,6 +160,7 @@ class DriverCompileTests: XCTestCase {
         ("testStringArgumentToPuts", testStringArgumentToPuts),
         ("testUnterminatedStringLiteralError", testUnterminatedStringLiteralError),
         ("testMultiFileCompilation", testMultiFileCompilation),
+        ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
     ]
 }
 

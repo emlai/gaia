@@ -116,6 +116,16 @@ class BasicREPLTests: XCTestCase {
         XCTAssert(replInput: "a = \"foo\"\na\na\na = \"\"\na\n", producesOutput: "\"foo\"\n\"foo\"\n\"\"\n")
     }
 
+    func testCoreLibraryFunctionCall() {
+        var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
+        stdoutBuffer.withUnsafeMutableBufferPointer {
+            setbuf(stdout, $0.baseAddress)
+            XCTAssert(replInput: "print(\"foo\")\n", producesOutput: "\n")
+            XCTAssertEqual(String(cString: $0.baseAddress!), "foo\n")
+            setbuf(stdout, nil)
+        }
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -134,6 +144,7 @@ class BasicREPLTests: XCTestCase {
         ("testExternCFunctionWithoutReturnValue", testExternCFunctionWithoutReturnValue),
         ("testArgumentMismatchError", testArgumentMismatchError),
         ("testVariableDefinition", testVariableDefinition),
+        ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
     ]
 }
 

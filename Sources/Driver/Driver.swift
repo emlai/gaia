@@ -13,13 +13,13 @@ public final class Driver {
     private var targetMachine: LLVMTargetMachineRef?
     private var module: LLVMModuleRef?
 
-    public init(outputStream: TextOutputStream = Stdout()) {
+    public init(outputStream: TextOutputStream = Stdout(), using irGenerator: IRGenerator? = nil) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
 
         self.outputStream = outputStream
-        irGenerator = IRGenerator(context: LLVMGetGlobalContext())
+        self.irGenerator = irGenerator ?? IRGenerator(context: LLVMGetGlobalContext())
 
         targetTriple = LLVMGetDefaultTargetTriple()
         defer { LLVMDisposeMessage(targetTriple) }
@@ -94,6 +94,7 @@ public final class Driver {
     /// Returns whether the compilation completed successfully.
     private func compile(files inputFileNames: [String]) -> Bool {
         initModuleAndFunctionPassManager(moduleName: determineModuleName(for: inputFileNames))
+        compileCoreLibrary(with: irGenerator)
         for inputFileName in inputFileNames {
             if !compileFile(inputFileName) { return false }
         }
@@ -102,7 +103,7 @@ public final class Driver {
     }
 
     /// Returns whether the compilation completed successfully.
-    private func compileFile(_ inputFileName: String) -> Bool {
+    fileprivate func compileFile(_ inputFileName: String) -> Bool {
         guard let inputFile = try? SourceFile(atPath: inputFileName) else {
             outputStream.write("error reading input file \(inputFileName), aborting\n")
             return false
@@ -191,5 +192,22 @@ public final class Driver {
 
         irGenerator.module = module
         irGenerator.functionPassManager = functionPassManager
+    }
+}
+
+private func findCoreLibraryFiles() throws -> [String] {
+    guard let gaiaHome = ProcessInfo.processInfo.environment["GAIA_HOME"] else {
+        fatalError("GAIA_HOME not defined")
+    }
+    let coreLibPath = gaiaHome + "/Core/"
+    return try FileManager.default.contentsOfDirectory(atPath: coreLibPath).map { coreLibPath + $0 }
+}
+
+public func compileCoreLibrary(with irGenerator: IRGenerator) {
+    let driver = Driver(using: irGenerator)
+    let onError = { print("Core library compilation failed.") }
+    guard let coreLibraryFiles = try? findCoreLibraryFiles() else { return onError() }
+    for file in coreLibraryFiles {
+        if !driver.compileFile(file) { return onError() }
     }
 }

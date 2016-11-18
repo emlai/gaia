@@ -5,6 +5,7 @@ import Parse
 import AST
 import IRGen
 import JIT
+import Driver
 
 public final class REPL {
     private var outputStream: TextOutputStream
@@ -157,5 +158,6 @@ public final class REPL {
 
         irGenerator.module = globalModule
         irGenerator.functionPassManager = functionPassManager
+        compileCoreLibrary(with: irGenerator)
     }
 }

@@ -1,0 +1,6 @@
+extern func puts(string: String)
+
+/** Writes the given string to standard output, terminated with a newline. */
+func print(string: String)
+    puts(string)
+end
