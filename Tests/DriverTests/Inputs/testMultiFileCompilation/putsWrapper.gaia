@@ -1,0 +1,5 @@
+extern func puts(string: String)
+
+func putsWrapper(string: String)
+    puts(string)
+end

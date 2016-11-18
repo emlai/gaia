@@ -36,52 +36,73 @@ public final class Driver {
                                                 LLVMCodeModelDefault)
     }
 
+    public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
+        return try compileAndExecute(inputFiles: [inputFile], stdoutPipe: stdoutPipe)
+    }
+
     /// Returns the exit status of the executed program on successful completion, or `nil` if
     /// the compiled program was not executed, e.g. because the compilation didn't succeed.
-    public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
-        if !compile(file: inputFile) { return nil }
+    public func compileAndExecute(inputFiles: [String], stdoutPipe: Pipe? = nil) throws -> Int32? {
+        if !compile(inputFiles: inputFiles) { return nil }
+        let moduleName = determineModuleName(for: inputFiles)
 
         let linkProcess = Process()
         linkProcess.launchPath = "/usr/bin/env"
-        linkProcess.arguments = ["cc", inputFile + ".o", "-o", inputFile + ".out"]
+        linkProcess.arguments = ["cc", moduleName + ".o", "-o", moduleName + ".out"]
         linkProcess.launch()
         linkProcess.waitUntilExit()
         if linkProcess.terminationStatus != 0 { return nil }
-        try FileManager.default.removeItem(atPath: inputFile + ".o")
+        try FileManager.default.removeItem(atPath: moduleName + ".o")
 
         let executeProcess = Process()
-        executeProcess.launchPath = inputFile + ".out"
+        executeProcess.launchPath = moduleName + ".out"
         if stdoutPipe != nil { executeProcess.standardOutput = stdoutPipe }
         executeProcess.launch()
         executeProcess.waitUntilExit()
-        try FileManager.default.removeItem(atPath: inputFile + ".out")
+        try FileManager.default.removeItem(atPath: moduleName + ".out")
 
         return executeProcess.terminationStatus
     }
 
+    private func determineModuleName(for inputFiles: [String]) -> String {
+        if inputFiles.count == 1 { return inputFiles[0] }
+        let commonPathPrefix = inputFiles.reduce(inputFiles[0]) { $0.commonPrefix(with: $1) }
+        let parentDirectoryName = commonPathPrefix.components(separatedBy: "/").dropLast().last!
+        return parentDirectoryName
+    }
+
+    private func determineCompilationOrder(of inputFiles: [String]) -> [String] {
+        guard let mainFileIndex = inputFiles.index(where: {
+            $0.components(separatedBy: "/").last!.caseInsensitiveCompare("main.gaia") == .orderedSame
+        }) else {
+            return inputFiles
+        }
+        var orderedInputFiles = inputFiles
+        orderedInputFiles.append(orderedInputFiles.remove(at: mainFileIndex)) // Move main.gaia last.
+        return orderedInputFiles
+    }
+
     /// Returns whether the compilation completed successfully.
-    public func compile(inputFiles: ArraySlice<String>) -> Bool {
+    public func compile(inputFiles: [String]) -> Bool {
         if inputFiles.isEmpty {
             outputStream.write("error: no input files\n")
             exit(1)
         }
+        return compile(files: determineCompilationOrder(of: inputFiles))
+    }
 
-        for inputFileName in inputFiles {
-            if !compile(file: inputFileName) { return false }
+    /// Returns whether the compilation completed successfully.
+    private func compile(files inputFileNames: [String]) -> Bool {
+        initModuleAndFunctionPassManager(moduleName: determineModuleName(for: inputFileNames))
+        for inputFileName in inputFileNames {
+            if !compileFile(inputFileName) { return false }
         }
+        emitModule(as: LLVMObjectFile, toPath: determineModuleName(for: inputFileNames) + ".o")
         return true
     }
 
     /// Returns whether the compilation completed successfully.
-    private func compile(file inputFileName: String) -> Bool {
-        initModuleAndFunctionPassManager(moduleName: inputFileName)
-        if !compileModule(inputFileName) { return false }
-        emitModule(as: LLVMObjectFile, toPath: inputFileName + ".o")
-        return true
-    }
-
-    /// Returns whether the compilation completed successfully.
-    private func compileModule(_ inputFileName: String) -> Bool {
+    private func compileFile(_ inputFileName: String) -> Bool {
         guard let inputFile = try? SourceFile(atPath: inputFileName) else {
             outputStream.write("error reading input file \(inputFileName), aborting\n")
             return false

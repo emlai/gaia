@@ -130,6 +130,11 @@ class DriverCompileTests: XCTestCase {
                        "      ^\n")
     }
 
+    func testMultiFileCompilation() throws {
+        let result = try compileAndExecute(files: "testMultiFileCompilation/main", "testMultiFileCompilation/putsWrapper")
+        XCTAssertEqual(result.programOutput, "hello\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -149,6 +154,7 @@ class DriverCompileTests: XCTestCase {
         ("testVariableRedefinitionError", testVariableRedefinitionError),
         ("testStringArgumentToPuts", testStringArgumentToPuts),
         ("testUnterminatedStringLiteralError", testUnterminatedStringLiteralError),
+        ("testMultiFileCompilation", testMultiFileCompilation),
     ]
 }
 
@@ -167,14 +173,14 @@ private struct CompileAndExecuteResult {
 }
 
 /// Convenience wrapper around `Driver.compileAndExecute`. Returns the exit status.
-private func compileAndExecute(file fileNameWithoutExtension: String) throws -> CompileAndExecuteResult {
+private func compileAndExecute(files fileNamesWithoutExtension: String...) throws -> CompileAndExecuteResult {
     let inputsDirectoryPath = URL(fileURLWithPath: #file).deletingLastPathComponent().path + "/Inputs"
     if !FileManager.default.changeCurrentDirectoryPath(inputsDirectoryPath) { fatalError() }
 
     let compilerOutput = TextOutputStreamBuffer()
     let programOutputPipe = Pipe()
     let driver = Driver(outputStream: compilerOutput)
-    let programExitStatus = try driver.compileAndExecute(inputFile: fileNameWithoutExtension + ".gaia",
+    let programExitStatus = try driver.compileAndExecute(inputFiles: fileNamesWithoutExtension.map { $0 + ".gaia" },
                                                          stdoutPipe: programOutputPipe)
     let programOutput: String?
     if programExitStatus != nil {
@@ -186,4 +192,8 @@ private func compileAndExecute(file fileNameWithoutExtension: String) throws -> 
     return CompileAndExecuteResult(compilerOutput: compilerOutput.buffer,
                                    programOutput: programOutput,
                                    programExitStatus: programExitStatus)
+}
+
+private func compileAndExecute(file fileNameWithoutExtension: String) throws -> CompileAndExecuteResult {
+    return try compileAndExecute(files: fileNameWithoutExtension)
 }
