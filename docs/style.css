@@ -8,19 +8,22 @@ header {
     height: 50px;
     line-height: 50px;
     border-bottom: 1px solid #ddd;
-}
-
-h1 {
     font-family: "Quicksand";
-    color: #444;
-    padding-left: 50px;
-    margin: auto;
-    height: 100%;
-    text-transform: uppercase;
     font-weight: lighter;
+    padding: 0 50px;
 }
 
-h1 a {
+h1, nav a {
+    color: #444;
+    margin: auto;
+}
+
+header h1 {
+    display: inline-block;
+    text-transform: uppercase;
+}
+
+h1 a, nav a {
     display: inline-block;
     height: 100%;
     text-decoration: inherit;
@@ -29,4 +32,40 @@ h1 a {
 
 a:hover {
     border-bottom: 4px solid #c3467f;
+}
+
+nav {
+    float: right;
+}
+
+nav a {
+    margin: auto 20px;
+}
+
+main {
+    margin: 25px 50px;
+}
+
+main h1 {
+    margin-bottom: 15px;
+}
+
+main h1.intro {
+    position: absolute;
+    left: 50%;
+    top: 20%;
+    transform: translateX(-50%);
+}
+
+code {
+    border-radius: 5px;
+    font-family: "SF Mono", Consolas, Menlo, "Liberation Mono", monospace;
+}
+
+code span.string {
+    color: #c3467f;
+}
+
+code span.function {
+    color: #4687c3;
 }
