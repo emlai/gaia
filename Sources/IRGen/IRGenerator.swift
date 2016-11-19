@@ -101,7 +101,7 @@ public final class IRGenerator: ASTVisitor {
         if let function = nonExternFunction {
             callee = try getInstantiation(of: function, for: arguments!)
         } else {
-            self.returnType = LLVMVoidType() // TODO: Support non-void extern functions.
+            self.returnType = LLVMVoidType()
             callee = try LLVMGetNamedFunction(module, functionCall.functionName) ?? prototype.acceptVisitor(self)
         }
 
