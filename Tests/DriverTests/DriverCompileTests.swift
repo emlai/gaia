@@ -140,6 +140,11 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "Hello, World!\n")
     }
 
+    func testInterpretationOfIntegerLiteralAsFloatingPoint() throws {
+        let result = try compileAndExecute(file: "testInterpretationOfIntegerLiteralAsFloatingPoint")
+        XCTAssertEqual(result.programOutput, "success\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -161,6 +166,7 @@ class DriverCompileTests: XCTestCase {
         ("testUnterminatedStringLiteralError", testUnterminatedStringLiteralError),
         ("testMultiFileCompilation", testMultiFileCompilation),
         ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
+        ("testInterpretationOfIntegerLiteralAsFloatingPoint", testInterpretationOfIntegerLiteralAsFloatingPoint),
     ]
 }
 

@@ -383,8 +383,15 @@ public final class IRGenerator: ASTVisitor {
                                           _ integerOperationPredicate: LLVMIntPredicate,
                                           _ floatingPointOperationPredicate: LLVMRealPredicate,
                                           _ name: String) throws -> LLVMValueRef {
-        let lhs = try operation.leftOperand.acceptVisitor(self)
-        let rhs = try operation.rightOperand.acceptVisitor(self)
+        var lhs = try operation.leftOperand.acceptVisitor(self)
+        var rhs = try operation.rightOperand.acceptVisitor(self)
+
+        // Interpret integer literals as floating-point in contexts that require a floating-point operand.
+        if LLVMTypeOf(lhs) == LLVMDoubleType() && operation.rightOperand as? IntegerLiteral != nil {
+            rhs = LLVMConstSIToFP(rhs, LLVMDoubleType())
+        } else if LLVMTypeOf(rhs) == LLVMDoubleType() && operation.leftOperand as? IntegerLiteral != nil {
+            lhs = LLVMConstSIToFP(lhs, LLVMDoubleType())
+        }
 
         switch (LLVMTypeOf(lhs), LLVMTypeOf(rhs)) {
             case (LLVMInt1Type(), LLVMInt1Type()),
