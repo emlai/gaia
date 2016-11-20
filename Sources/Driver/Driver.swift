@@ -1,6 +1,5 @@
 import Foundation
-import LLVM_C.ExecutionEngine
-import LLVM_C.Transforms.Scalar
+import LLVM_C
 import Parse
 import AST
 import IRGen

@@ -1,4 +1,4 @@
-import LLVM_C.Core
+import LLVM_C
 import AST
 
 public enum CompileError: SourceCodeError {

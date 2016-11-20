@@ -1,5 +1,4 @@
-import LLVM_C.Analysis
-import LLVM_C.Core
+import LLVM_C
 import AST
 
 /// Generates LLVM IR code based on the abstract syntax tree.
