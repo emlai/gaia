@@ -1,1 +1,12 @@
 baseurl: /gaia
+
+collections:
+  guide:
+    output: true
+
+defaults:
+  - scope:
+      path: ""
+      type: guide
+    values:
+      layout: guide

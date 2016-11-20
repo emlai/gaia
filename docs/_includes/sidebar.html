@@ -1,0 +1,13 @@
+<nav class="sidebar">
+    <ul>
+        {% for item in sidebar_items %}
+        <li>
+            {% if page.url == item.url %}
+            <a href="{{ item.url | prepend: site.baseurl }}" class="active">{{ item.title }}</a>
+            {% else %}
+            <a href="{{ item.url | prepend: site.baseurl }}">{{ item.title }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</nav>

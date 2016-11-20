@@ -2,48 +2,63 @@ body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
         sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    color: #334;
 }
 
 header {
+    background-color: #fff;
+    position: fixed;
+    top: 0;
+    width: 100%;
     height: 50px;
     line-height: 50px;
     border-bottom: 1px solid #ddd;
     font-family: "Quicksand";
-    font-weight: lighter;
+}
+
+.header-container {
     padding: 0 50px;
 }
 
-h1, nav a {
-    color: #444;
+h1, header nav a {
     margin: auto;
 }
 
 header h1 {
     display: inline-block;
     text-transform: uppercase;
+    font-weight: lighter;
 }
 
-h1 a, nav a {
+h1 a, header nav a {
     display: inline-block;
-    height: 100%;
+    height: 47px;
+}
+
+a {
     text-decoration: inherit;
     color: inherit;
 }
 
-a:hover {
+header a:hover, header a.active {
     border-bottom: 4px solid #c3467f;
 }
 
-nav {
+header nav {
     float: right;
 }
 
-nav a {
+header nav a {
     margin: auto 20px;
 }
 
-main {
-    margin: 25px 50px;
+main:not(.home) {
+    position: absolute;
+    left: 200px;
+    top: 50px;
+    right: 0;
+    margin: 30px;
+    z-index: -1;
 }
 
 main h1 {
@@ -68,4 +83,37 @@ code span.string {
 
 code span.function {
     color: #4687c3;
+}
+
+nav.sidebar {
+    background-color: #fff;
+    float: left;
+    width: 150px;
+    height: 100%;
+    position: fixed;
+    top: 51px;
+    padding: 25px;
+    padding-top: 30px;
+    border-right: 1px dotted #ddd;
+    font-size: 0.9em;
+}
+
+nav.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    line-height: 1.5em;
+}
+
+nav.sidebar a {
+    padding: 100px auto;
+}
+
+nav.sidebar a:hover {
+    text-decoration: underline;
+    border-bottom: none;
+}
+
+nav.sidebar a.active {
+    font-weight: bold;
 }

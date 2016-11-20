@@ -1,0 +1,16 @@
+---
+title: Gaia Language Guide
+---
+
+<!DOCTYPE html>
+<html>
+    {% include head.html %}
+    <body>
+        {% include header.html %}
+        {% assign sidebar_items = site.guide | sort:"order" %}
+        {% include sidebar.html %}
+        <main>
+            {{ content }}
+        </main>
+    </body>
+</html>

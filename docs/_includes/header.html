@@ -1,0 +1,20 @@
+<header>
+    <div class="header-container">
+        <h1>
+            <a href="{{ "/" | prepend: site.baseurl }}"
+            {% if page.title == "Gaia" %} class="active" {% endif %}>
+                Gaia
+            </a>
+        </h1>
+        <nav>
+            <a href="{{ "/guide/basics.html" | prepend: site.baseurl }}"
+            {% if page.url contains "guide" %} class="active" {% endif %}>
+                Guide
+            </a>
+            <a href="{{ "/api" | prepend: site.baseurl }}"
+            {% if page.url contains "api" %} class="active" {% endif %}>
+                API
+            </a>
+        </nav>
+    </div>
+</header>
