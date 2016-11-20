@@ -2,7 +2,6 @@ import LLVM_C
 import Parse
 import AST
 import IRGen
-import JIT
 import Driver
 
 public final class REPL {
@@ -14,15 +13,12 @@ public final class REPL {
     private var variables: [String: VariableDefinition]
     private var globalModule: LLVMModuleRef?
     private var executionEngine: LLVMExecutionEngineRef?
-    private let jit: GaiaJITRef
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
                 infoOutputStream: TextOutputStream = Stdout()) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
-
-        jit = GaiaCreateJIT()
 
         self.outputStream = outputStream
         self.infoOutputStream = infoOutputStream
@@ -34,7 +30,7 @@ public final class REPL {
     }
 
     deinit {
-        GaiaDisposeJIT(jit)
+        LLVMDisposeExecutionEngine(executionEngine)
     }
 
     public func run() {
@@ -92,43 +88,28 @@ public final class REPL {
         // Get the type of the expression.
         let type = LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(ir)))!
 
-        // JIT the module containing the anonymous expression,
-        // keeping a handle so we can free it later.
-        let moduleHandle = GaiaJITAddModule(jit, &globalModule)
-        defer { GaiaJITDisposeModuleHandle(moduleHandle) }
+        // JIT the anonymous function.
+        let result = LLVMRunFunction(executionEngine, ir, 0, nil)!
         initModuleAndFunctionPassManager()
 
-        guard let symbolAddress = GaiaJITFindSymbolAddress(jit, "__anon_expr") else {
-            fatalError("function not found")
-        }
-
-        outputStream.write(evaluate(symbolAddress, type: type))
+        outputStream.write(evaluate(result, type: type))
         outputStream.write("\n")
-
-        // Delete the anonymous expression module from the JIT.
-        GaiaJITRemoveModule(jit, moduleHandle)
     }
 
     private func handleVariableDefinition(_ variableDefinition: VariableDefinition) {
         variables[variableDefinition.name] = variableDefinition
     }
 
-    typealias VoidFunction = @convention(c) () -> Void
-    typealias BoolFunction = @convention(c) () -> CBool
-    typealias Int64Function = @convention(c) () -> Int64
-    typealias DoubleFunction = @convention(c) () -> Double
-    typealias StringFunction = @convention(c) () -> UnsafePointer<Int8>
-
-    private func evaluate(_ function: UnsafeRawPointer, type: LLVMTypeRef) -> String {
+    private func evaluate(_ result: LLVMGenericValueRef, type: LLVMTypeRef) -> String {
         switch type {
-            case LLVMVoidType(): unsafeBitCast(function, to: VoidFunction.self)(); return ""
-            case LLVMInt1Type(): return String(unsafeBitCast(function, to: BoolFunction.self)())
-            case LLVMInt64Type(): return String(unsafeBitCast(function, to: Int64Function.self)())
-            case LLVMDoubleType(): return String(unsafeBitCast(function, to: DoubleFunction.self)())
+            case LLVMVoidType(): return ""
+            case LLVMInt1Type(): return LLVMGenericValueToInt(result, 0) != 0 ? "true" : "false"
+            case LLVMInt64Type(): return String(Int64(bitPattern: LLVMGenericValueToInt(result, 1)))
+            case LLVMDoubleType(): return String(LLVMGenericValueToFloat(type, result))
             default:
                 if LLVMGetTypeKind(type) == LLVMPointerTypeKind
                 && LLVMGetElementType(type) == LLVMInt8Type() {
-                    return "\"\(String(cString: unsafeBitCast(function, to: StringFunction.self)()))\""
+                    return "\"\(String(cString: LLVMGenericValueToPointer(result).assumingMemoryBound(to: Int8.self)))\""
                 }
 
                 let typeName = LLVMPrintTypeToString(type)
@@ -139,7 +120,13 @@ public final class REPL {
 
     private func initModuleAndFunctionPassManager() {
         globalModule = LLVMModuleCreateWithName("gaiajit")
-        LLVMSetModuleDataLayout(globalModule, LLVMCreateTargetDataLayout(GaiaGetJITTargetMachine(jit)))
+
+        var errorMessage: UnsafeMutablePointer<CChar>? = nil
+        if LLVMCreateExecutionEngineForModule(&executionEngine, globalModule, &errorMessage) != 0 {
+            defer { LLVMDisposeMessage(errorMessage) }
+            fatalError(String(cString: errorMessage!))
+        }
+        LLVMSetModuleDataLayout(globalModule, LLVMGetExecutionEngineTargetData(executionEngine))
 
         let functionPassManager = LLVMCreateFunctionPassManagerForModule(globalModule)
         // Promote allocas to registers.
