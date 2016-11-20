@@ -127,6 +127,9 @@ public final class Driver {
 
     private func emitError(_ error: Error, file: String) {
         let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        guard #available(macOS 10.11, *) else {
+            fatalError("This program requires macOS 10.11 or greater.")
+        }
         let relativeFileURL = URL(fileURLWithPath: file, relativeTo: currentDirectoryURL)
 
         if let sourceCodeError = error as? SourceCodeError {
