@@ -24,6 +24,10 @@ public enum BinaryOperator: String {
             case .multiplication, .division: return 5
         }
     }
+
+    public var isOverloadable: Bool {
+        return [.equals, .lessThan, .plus, .minus, .multiplication, .division].contains(self)
+    }
 }
 
 public protocol Expression: Statement { }

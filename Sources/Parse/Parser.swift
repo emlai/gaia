@@ -4,18 +4,31 @@ import AST
 public enum ParseError: SourceCodeError {
     case unexpectedToken(String)
     case unterminatedStringLiteral(location: SourceLocation)
+    case invalidNumberOfParameters(String, location: SourceLocation)
 
     public var location: SourceLocation? {
         switch self {
             case .unexpectedToken: return nil
-            case .unterminatedStringLiteral(let location): return location
+            case .unterminatedStringLiteral(let location),
+                 .invalidNumberOfParameters(_, let location): return location
         }
     }
 
     public var description: String {
         switch self {
-            case .unexpectedToken(let message): return message
+            case .unexpectedToken(let message),
+                 .invalidNumberOfParameters(let message, _): return message
             case .unterminatedStringLiteral: return "unterminated string literal"
+        }
+    }
+}
+
+extension UnaryOperator {
+    fileprivate init?(from binaryOperator: BinaryOperator) {
+        switch binaryOperator {
+            case .plus: self = .plus
+            case .minus: self = .minus
+            default: return nil
         }
     }
 }
@@ -63,8 +76,22 @@ public final class Parser {
     func parseFunctionPrototype() throws -> FunctionPrototype {
         _ = try nextToken() // consume 'func'
 
-        guard case .identifier(let functionName)? = token else {
-            throw ParseError.unexpectedToken("expected function name in prototype")
+        enum NameOrOperator {
+            case name(String)
+            case op(BinaryOperator) // Handles unary operators too (FIXME).
+        }
+        let nameLocation = tokenSourceLocation!
+        let nameOrOperator: NameOrOperator
+        switch token {
+            case .identifier(let name)?: nameOrOperator = .name(name)
+            case .binaryOperator(let op)?:
+                if !op.isOverloadable {
+                    throw ParseError.unexpectedToken("operator `\(op.rawValue)` is not overloadable")
+                }
+                nameOrOperator = .op(op)
+            case .plus?: nameOrOperator = .op(.plus)
+            case .minus?: nameOrOperator = .op(.minus)
+            default: throw ParseError.unexpectedToken("expected function name in prototype")
         }
 
         _ = try nextToken()
@@ -80,7 +107,20 @@ public final class Parser {
             returnType = nil
         }
 
-        return FunctionPrototype(name: functionName, parameters: parameters, returnType: returnType)
+        switch nameOrOperator {
+            case .name(let name):
+                return FunctionPrototype(name: name, parameters: parameters, returnType: returnType)
+            case .op(let op):
+                switch parameters.count {
+                    case 2: return BinaryOperatorPrototype(operator: op, lhs: parameters[0],
+                                                           rhs: parameters[1], returnType: returnType)
+                    case 1: return UnaryOperatorPrototype(operator: UnaryOperator(from: op)!,
+                                                          operand: parameters[0], returnType: returnType)
+                    default: throw ParseError.invalidNumberOfParameters("invalid number of parameters " +
+                                                                        "for operator `\(op.rawValue)`",
+                                                                        location: nameLocation)
+                }
+        }
     }
 
     private func parseParameterList() throws -> [Parameter] {

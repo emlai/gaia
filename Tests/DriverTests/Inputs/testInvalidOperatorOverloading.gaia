@@ -1,0 +1,6 @@
+func >(a, b)
+    print(a)
+    print(b)
+end
+
+"foo" > "bar"

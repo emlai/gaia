@@ -26,6 +26,20 @@ public enum CompileError: SourceCodeError {
     }
 }
 
+extension FunctionCall {
+    convenience init(from binaryOperation: BinaryOperation) throws {
+        self.init(functionName: binaryOperation.operator.rawValue,
+                  arguments: [binaryOperation.leftOperand, binaryOperation.rightOperand],
+                  at: binaryOperation.sourceLocation)
+    }
+
+    convenience init(from unaryOperation: UnaryOperation) throws {
+        self.init(functionName: unaryOperation.operator.rawValue,
+                  arguments: [unaryOperation.operand],
+                  at: unaryOperation.sourceLocation)
+    }
+}
+
 let LLVMFalse: LLVMBool = 0
 let LLVMTrue: LLVMBool = 1
 

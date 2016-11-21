@@ -52,8 +52,7 @@ public final class IRGenerator: ASTVisitor {
     public func visit(unaryOperation: UnaryOperation) throws -> LLVMValueRef {
         switch unaryOperation.operator {
             case .not: return try buildLogicalNegation(of: unaryOperation.operand)
-            case .plus: return try unaryOperation.operand.acceptVisitor(self)
-            case .minus: return try buildNumericNegation(of: unaryOperation.operand)
+            case .plus, .minus: return try buildUnaryOperation(unaryOperation)
         }
     }
 
@@ -356,13 +355,22 @@ public final class IRGenerator: ASTVisitor {
         return LLVMBuildUIToFP(builder, boolean, LLVMDoubleTypeInContext(context), "booltmp")
     }
 
-    private func buildNumericNegation(of expression: Expression) throws -> LLVMValueRef {
-        let operand = try expression.acceptVisitor(self)
+    private func buildUnaryOperation(_ operation: UnaryOperation) throws -> LLVMValueRef {
+        let operand = try operation.operand.acceptVisitor(self)
 
         switch LLVMTypeOf(operand) {
             case LLVMInt64TypeInContext(context): return LLVMBuildNeg(builder, operand, "negtmp")
             case LLVMDoubleTypeInContext(context): return LLVMBuildFNeg(builder, operand, "negtmp")
-            default: fatalError("unknown type")
+            default: break
+        }
+
+        do {
+            // It wasn't a built-in operator. Check if it's a user-defined one.
+            return try FunctionCall(from: operation).acceptVisitor(self)
+        } catch CompileError.unknownIdentifier {
+            throw CompileError.invalidType(location: operation.operand.sourceLocation,
+                                           message: "invalid operand type `\(LLVMTypeOf(operand).gaiaTypeName)` " +
+                                                    "for unary `\(operation.operator.rawValue)`")
         }
     }
 
@@ -404,10 +412,16 @@ public final class IRGenerator: ASTVisitor {
                 return integerOperationBuildFunc(builder, integerOperationPredicate, lhs, rhs, name)
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, floatingPointOperationPredicate, lhs, rhs, name)
-            default:
-                throw CompileError.invalidType(location: operation.sourceLocation,
-                                               message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
-                                                        "`\(LLVMTypeOf(rhs).gaiaTypeName)` for comparison operation")
+            default: break
+        }
+
+        do {
+            // It wasn't a built-in operator. Check if it's a user-defined one.
+            return try FunctionCall(from: operation).acceptVisitor(self)
+        } catch CompileError.unknownIdentifier {
+            throw CompileError.invalidType(location: operation.sourceLocation,
+                                           message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                    "`\(LLVMTypeOf(rhs).gaiaTypeName)` for comparison operation")
         }
     }
 
@@ -426,10 +440,16 @@ public final class IRGenerator: ASTVisitor {
                 return integerOperationBuildFunc(builder, lhs, rhs, name)
             case (LLVMDoubleType(), LLVMDoubleType()):
                 return floatingPointOperationBuildFunc(builder, lhs, rhs, name)
-            default:
-                throw CompileError.invalidType(location: operation.sourceLocation,
-                                               message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
-                                                        "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
+            default: break
+        }
+
+        do {
+            // It wasn't a built-in operator. Check if it's a user-defined one.
+            return try FunctionCall(from: operation).acceptVisitor(self)
+        } catch CompileError.unknownIdentifier {
+            throw CompileError.invalidType(location: operation.sourceLocation,
+                                           message: "invalid types `\(LLVMTypeOf(lhs).gaiaTypeName)` and " +
+                                                    "`\(LLVMTypeOf(rhs).gaiaTypeName)` for arithmetic operation")
         }
     }
 

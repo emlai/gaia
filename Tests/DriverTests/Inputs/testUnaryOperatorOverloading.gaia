@@ -1,0 +1,5 @@
+func +(a)
+    return a
+end
+
+print(++"foo")

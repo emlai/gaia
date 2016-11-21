@@ -146,6 +146,39 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "success\n")
     }
 
+    func testOperatorOverloading() throws {
+        let result = try compileAndExecute(file: "testOperatorOverloading")
+        XCTAssertEqual(result.programOutput, "foo\nbar\nbar\nfoo\n")
+    }
+
+    func testInvalidOperatorOverloading() throws {
+        let result = try compileAndExecute(file: "testInvalidOperatorOverloading")
+        XCTAssertEqual(result.compilerOutput,
+                       "testInvalidOperatorOverloading.gaia: error: operator `>` is not overloadable\n")
+    }
+
+    func testUnaryOperatorOverloading() throws {
+        let result = try compileAndExecute(file: "testUnaryOperatorOverloading")
+        XCTAssertEqual(result.programOutput, "foo\n")
+    }
+
+    func testInvalidUnaryPlus() throws {
+        let result = try compileAndExecute(file: "testInvalidUnaryPlus")
+        XCTAssertEqual(result.compilerOutput,
+                       "testInvalidUnaryPlus.gaia:1:2: error: invalid operand type `String` for unary `+`\n" +
+                       "+\"foo\"\n" +
+                       " ^\n")
+    }
+
+    func testInvalidNumberOfParametersInOperatorFunction() throws {
+        let result = try compileAndExecute(file: "testInvalidNumberOfParametersInOperatorFunction")
+        XCTAssertEqual(result.compilerOutput,
+                       "testInvalidNumberOfParametersInOperatorFunction.gaia:1:6: " +
+                       "error: invalid number of parameters for operator `+`\n" +
+                       "func +(a, b, c)\n" +
+                       "     ^\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -168,6 +201,11 @@ class DriverCompileTests: XCTestCase {
         ("testMultiFileCompilation", testMultiFileCompilation),
         ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
         ("testInterpretationOfIntegerLiteralAsFloatingPoint", testInterpretationOfIntegerLiteralAsFloatingPoint),
+        ("testOperatorOverloading", testOperatorOverloading),
+        ("testInvalidOperatorOverloading", testInvalidOperatorOverloading),
+        ("testUnaryOperatorOverloading", testUnaryOperatorOverloading),
+        ("testInvalidUnaryPlus", testInvalidUnaryPlus),
+        ("testInvalidNumberOfParametersInOperatorFunction", testInvalidNumberOfParametersInOperatorFunction),
     ]
 }
 
