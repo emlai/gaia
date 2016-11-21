@@ -4,6 +4,10 @@ import Parse
 import AST
 import IRGen
 
+#if os(Linux)
+typealias Process = Task
+#endif
+
 public final class Driver {
     private var outputStream: TextOutputStream
     private var parser: Parser?
