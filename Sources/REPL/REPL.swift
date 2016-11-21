@@ -12,7 +12,9 @@ public final class REPL {
     private let irGenerator: IRGenerator
     private var variables: [String: VariableDefinition]
     private var globalModule: LLVMModuleRef?
-    private var executionEngine: LLVMExecutionEngineRef?
+    private var executionEngine: LLVMExecutionEngineRef? {
+        willSet { LLVMDisposeExecutionEngine(executionEngine) }
+    }
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
                 infoOutputStream: TextOutputStream = Stdout()) {
@@ -90,10 +92,12 @@ public final class REPL {
 
         // JIT the anonymous function.
         let result = LLVMRunFunction(executionEngine, ir, 0, nil)!
-        initModuleAndFunctionPassManager()
+        defer { LLVMDisposeGenericValue(result) }
 
         outputStream.write(evaluate(result, type: type))
         outputStream.write("\n")
+
+        initModuleAndFunctionPassManager()
     }
 
     private func handleVariableDefinition(_ variableDefinition: VariableDefinition) {

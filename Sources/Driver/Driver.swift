@@ -12,8 +12,7 @@ public final class Driver {
     private var outputStream: TextOutputStream
     private var parser: Parser?
     private let irGenerator: IRGenerator
-    private let targetTriple: UnsafeMutablePointer<CChar>
-    private var targetMachine: LLVMTargetMachineRef?
+    private let targetMachine: LLVMTargetMachineRef
     private var module: LLVMModuleRef?
 
     public init(outputStream: TextOutputStream = Stdout(), using irGenerator: IRGenerator? = nil) {
@@ -24,7 +23,7 @@ public final class Driver {
         self.outputStream = outputStream
         self.irGenerator = irGenerator ?? IRGenerator(context: LLVMGetGlobalContext())
 
-        targetTriple = LLVMGetDefaultTargetTriple()
+        let targetTriple = LLVMGetDefaultTargetTriple()
         defer { LLVMDisposeMessage(targetTriple) }
 
         var target: LLVMTargetRef? = nil
@@ -37,6 +36,10 @@ public final class Driver {
         targetMachine = LLVMCreateTargetMachine(target, targetTriple, "generic", "",
                                                 LLVMCodeGenLevelNone, LLVMRelocDefault,
                                                 LLVMCodeModelDefault)
+    }
+
+    deinit {
+        LLVMDisposeTargetMachine(targetMachine)
     }
 
     public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
@@ -153,11 +156,13 @@ public final class Driver {
         irGenerator.appendImplicitZeroReturnToMainFunction()
 
         var errorMessage: UnsafeMutablePointer<CChar>? = nil
-        if LLVMTargetMachineEmitToFile(targetMachine, module,
-                                       UnsafeMutablePointer<CChar>(mutating: outputFilePath),
-                                       codeGenFileType, &errorMessage) != 0 {
-            outputStream.write("\(String(cString: errorMessage!))\n")
-            exit(1)
+        outputFilePath.withCString { outputFilePathCString in
+            if LLVMTargetMachineEmitToFile(targetMachine, module,
+                                           UnsafeMutablePointer(mutating: outputFilePathCString),
+                                           codeGenFileType, &errorMessage) != 0 {
+                outputStream.write("\(String(cString: errorMessage!))\n")
+                exit(1)
+            }
         }
         LLVMDisposeMessage(errorMessage)
     }
@@ -179,9 +184,16 @@ public final class Driver {
     }
 
     private func initModuleAndFunctionPassManager(moduleName: String) {
+        LLVMDisposeModule(module)
         module = LLVMModuleCreateWithName(moduleName)
-        LLVMSetModuleDataLayout(module, LLVMCreateTargetDataLayout(targetMachine))
+
+        let dataLayout = LLVMCreateTargetDataLayout(targetMachine)
+        LLVMSetModuleDataLayout(module, dataLayout)
+        LLVMDisposeTargetData(dataLayout)
+
+        let targetTriple = LLVMGetDefaultTargetTriple()
         LLVMSetTarget(module, targetTriple)
+        LLVMDisposeMessage(targetTriple)
 
         let functionPassManager = LLVMCreateFunctionPassManagerForModule(module)
         // Promote allocas to registers.

@@ -9,7 +9,9 @@ public final class IRGenerator: ASTVisitor {
     private var functionDefinitions: [String: Function]
     private var externFunctionPrototypes: [String: FunctionPrototype]
     private var returnType: LLVMTypeRef?
-    public var functionPassManager: LLVMPassManagerRef?
+    public var functionPassManager: LLVMPassManagerRef? {
+        willSet { LLVMDisposePassManager(functionPassManager) }
+    }
     public var module: LLVMModuleRef?
     public var arguments: [Argument]? // Used to pass function arguments to visitor functions.
 
@@ -20,6 +22,10 @@ public final class IRGenerator: ASTVisitor {
         functionDefinitions = [:]
         externFunctionPrototypes = [:]
         returnType = LLVMVoidTypeInContext(context) // dummy initial value
+    }
+
+    deinit {
+        LLVMDisposeBuilder(builder)
     }
 
     public func visit(variableDefinition: VariableDefinition) throws -> LLVMValueRef {
@@ -429,6 +435,7 @@ public final class IRGenerator: ASTVisitor {
 
     private func createEntryBlockAlloca(for function: LLVMValueRef, name: String, type: LLVMTypeRef) -> LLVMValueRef {
         let temporaryBuilder = LLVMCreateBuilder()
+        defer { LLVMDisposeBuilder(temporaryBuilder) }
         let entryBlock = LLVMGetEntryBasicBlock(function)
         let entryBlockFirstInstruction = LLVMGetFirstInstruction(entryBlock)
         LLVMPositionBuilder(temporaryBuilder, entryBlock, entryBlockFirstInstruction)
