@@ -148,7 +148,7 @@ final class Lexer {
             return (currentSourceLocation, .newline)
         }
 
-        if let c = character, CharacterSet.letters.contains(c) {
+        if let c = character, CharacterSet.letters.contains(c) || c == "_" {
             return (currentSourceLocation, lexKeywordOrIdentifier(firstCharacter: c))
         }
 
@@ -218,7 +218,7 @@ final class Lexer {
 
         while true {
             let character = readNextInputCharacter()
-            if let c = character, CharacterSet.alphanumerics.contains(c) {
+            if let c = character, CharacterSet.alphanumerics.contains(c) || c == "_" {
                 identifier.append(c)
             } else {
                 unreadInputCharacter(character)

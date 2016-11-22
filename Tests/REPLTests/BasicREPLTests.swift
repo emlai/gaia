@@ -129,6 +129,10 @@ class BasicREPLTests: XCTestCase {
         }
     }
 
+    func testIdentifierWithUnderscore() {
+        XCTAssertEqual(runREPL("_=1\n__=2\n_a=3\na_=4\n_\n__\n_a\na_"), "1\n2\n3\n4\n")
+    }
+
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
         ("testBooleanLiteralExpression", testBooleanLiteralExpression),
@@ -148,6 +152,7 @@ class BasicREPLTests: XCTestCase {
         ("testArgumentMismatchError", testArgumentMismatchError),
         ("testVariableDefinition", testVariableDefinition),
         ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
+        ("testIdentifierWithUnderscore", testIdentifierWithUnderscore),
     ]
 }
 
