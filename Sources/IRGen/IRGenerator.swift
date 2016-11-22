@@ -371,10 +371,6 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildBoolToDouble(from boolean: LLVMValueRef) -> LLVMValueRef {
-        return LLVMBuildUIToFP(builder, boolean, LLVMDoubleTypeInContext(context), "booltmp")
-    }
-
     private func buildUnaryOperation(_ operation: UnaryOperation) throws -> LLVMValueRef {
         let operand = try operation.operand.acceptVisitor(self)
 
