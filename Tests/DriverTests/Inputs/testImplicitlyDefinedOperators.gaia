@@ -1,0 +1,14 @@
+extern func strcmp(a, b) -> Int
+
+func ==(a, b)
+    return strcmp(a, b) == 0
+end
+
+func <(a, b)
+    return strcmp(a, b) < 0
+end
+
+print(if "foo" != "foo" then "failure" else "success")
+print(if "foo" > "foo" then "failure" else "success")
+print(if "foo" <= "foo" then "success" else "failure")
+print(if "foo" >= "foo" then "success" else "failure")

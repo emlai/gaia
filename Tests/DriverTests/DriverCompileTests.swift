@@ -179,6 +179,11 @@ class DriverCompileTests: XCTestCase {
                        "     ^\n")
     }
 
+    func testImplicitlyDefinedOperators() throws {
+        let result = try compileAndExecute(file: "testImplicitlyDefinedOperators")
+        XCTAssertEqual(result.programOutput, "success\nsuccess\nsuccess\nsuccess\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -206,6 +211,7 @@ class DriverCompileTests: XCTestCase {
         ("testUnaryOperatorOverloading", testUnaryOperatorOverloading),
         ("testInvalidUnaryPlus", testInvalidUnaryPlus),
         ("testInvalidNumberOfParametersInOperatorFunction", testInvalidNumberOfParametersInOperatorFunction),
+        ("testImplicitlyDefinedOperators", testImplicitlyDefinedOperators),
     ]
 }
 

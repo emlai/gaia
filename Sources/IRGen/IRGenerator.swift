@@ -63,11 +63,31 @@ public final class IRGenerator: ASTVisitor {
             case .multiplication: return try buildBinaryOperation(binaryOperation, LLVMBuildMul, LLVMBuildFMul, "multmp")
             case .division: return try buildBinaryOperation(binaryOperation, LLVMBuildSDiv, LLVMBuildFDiv, "divtmp")
             case .equals: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
-            case .notEquals: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
-            case .greaterThan: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .notEquals:
+                let temporaryOperation = BinaryOperation(operator: .equals,
+                                                         leftOperand: binaryOperation.leftOperand,
+                                                         rightOperand: binaryOperation.rightOperand,
+                                                         at: binaryOperation.sourceLocation)
+                return try buildLogicalNegation(of: temporaryOperation)
             case .lessThan: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
-            case .greaterThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
-            case .lessThanOrEqual: return try buildComparisonOperation(binaryOperation, LLVMBuildICmp, LLVMBuildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
+            case .greaterThan:
+                let temporaryOperation = BinaryOperation(operator: .lessThan,
+                                                         leftOperand: binaryOperation.rightOperand,
+                                                         rightOperand: binaryOperation.leftOperand,
+                                                         at: binaryOperation.sourceLocation)
+                return try temporaryOperation.acceptVisitor(self)
+            case .lessThanOrEqual:
+                let temporaryOperation = BinaryOperation(operator: .lessThan,
+                                                         leftOperand: binaryOperation.rightOperand,
+                                                         rightOperand: binaryOperation.leftOperand,
+                                                         at: binaryOperation.sourceLocation)
+                return try buildLogicalNegation(of: temporaryOperation)
+            case .greaterThanOrEqual:
+                let temporaryOperation = BinaryOperation(operator: .lessThan,
+                                                         leftOperand: binaryOperation.leftOperand,
+                                                         rightOperand: binaryOperation.rightOperand,
+                                                         at: binaryOperation.sourceLocation)
+                return try buildLogicalNegation(of: temporaryOperation)
         }
     }
 
