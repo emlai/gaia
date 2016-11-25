@@ -1,4 +1,5 @@
 import LLVM_C
+import LLVM
 import Parse
 import AST
 import IRGen
@@ -11,10 +12,8 @@ public final class REPL {
     private let astPrinter: ASTPrinter
     private let irGenerator: IRGenerator
     private var variables: [String: VariableDefinition]
-    private var globalModule: LLVMModuleRef?
-    private var executionEngine: LLVMExecutionEngineRef? {
-        willSet { LLVMDisposeExecutionEngine(executionEngine) }
-    }
+    private var globalModule: LLVM.Module!
+    private var executionEngine: LLVMExecutionEngineRef?
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
                 infoOutputStream: TextOutputStream = Stdout()) {
@@ -26,13 +25,9 @@ public final class REPL {
         self.infoOutputStream = infoOutputStream
         parser = Parser(readingFrom: inputStream)
         astPrinter = ASTPrinter(printingTo: outputStream)
-        irGenerator = IRGenerator(context: LLVMGetGlobalContext())
+        irGenerator = IRGenerator()
         variables = [:]
         initModuleAndFunctionPassManager()
-    }
-
-    deinit {
-        LLVMDisposeExecutionEngine(executionEngine)
     }
 
     public func run() {
@@ -85,16 +80,13 @@ public final class REPL {
         let function = Function(prototype: prototype, body: body)
         irGenerator.registerFunctionDefinition(function)
         irGenerator.arguments = []
-        let ir = try function.acceptVisitor(irGenerator)
-
-        // Get the type of the expression.
-        let type = LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(ir)))!
+        let ir = try function.acceptVisitor(irGenerator) as! LLVM.Function
 
         // JIT the anonymous function.
-        let result = LLVMRunFunction(executionEngine, ir, 0, nil)!
+        let result = LLVMRunFunction(executionEngine, ir.ref, 0, nil)!
         defer { LLVMDisposeGenericValue(result) }
 
-        outputStream.write(evaluate(result, type: type))
+        outputStream.write(evaluate(result, type: ir.functionType.returnType))
         outputStream.write("\n")
 
         initModuleAndFunctionPassManager()
@@ -104,35 +96,32 @@ public final class REPL {
         variables[variableDefinition.name] = variableDefinition
     }
 
-    private func evaluate(_ result: LLVMGenericValueRef, type: LLVMTypeRef) -> String {
+    private func evaluate(_ result: LLVMGenericValueRef, type: LLVM.TypeType) -> String {
         switch type {
-            case LLVMVoidType(): return ""
-            case LLVMInt1Type(): return LLVMGenericValueToInt(result, 0) != 0 ? "true" : "false"
-            case LLVMInt64Type(): return String(Int64(bitPattern: LLVMGenericValueToInt(result, 1)))
-            case LLVMDoubleType(): return String(LLVMGenericValueToFloat(type, result))
+            case LLVM.VoidType(): return ""
+            case LLVM.IntType.int1(): return LLVMGenericValueToInt(result, 0) != 0 ? "true" : "false"
+            case LLVM.IntType.int64(): return String(Int64(bitPattern: LLVMGenericValueToInt(result, 1)))
+            case LLVM.RealType.double(): return String(LLVMGenericValueToFloat(type.ref, result))
             default:
-                if LLVMGetTypeKind(type) == LLVMPointerTypeKind
-                && LLVMGetElementType(type) == LLVMInt8Type() {
+                if type.kind == LLVMPointerTypeKind
+                && LLVMGetElementType(type.ref) == LLVM.IntType.int8().ref {
                     return "\"\(String(cString: LLVMGenericValueToPointer(result).assumingMemoryBound(to: Int8.self)))\""
                 }
-
-                let typeName = LLVMPrintTypeToString(type)
-                defer { LLVMDisposeMessage(typeName) }
-                return "unknown type '\(String(cString: typeName!))'"
+                return "unknown type '\(type.string)'"
         }
     }
 
     private func initModuleAndFunctionPassManager() {
-        globalModule = LLVMModuleCreateWithName("gaiajit")
+        globalModule = LLVM.Module(name: "gaiajit")
 
         var errorMessage: UnsafeMutablePointer<CChar>? = nil
-        if LLVMCreateExecutionEngineForModule(&executionEngine, globalModule, &errorMessage) != 0 {
+        if LLVMCreateExecutionEngineForModule(&executionEngine, globalModule.ref, &errorMessage) != 0 {
             defer { LLVMDisposeMessage(errorMessage) }
             fatalError(String(cString: errorMessage!))
         }
-        LLVMSetModuleDataLayout(globalModule, LLVMGetExecutionEngineTargetData(executionEngine))
+        LLVMSetModuleDataLayout(globalModule.ref, LLVMGetExecutionEngineTargetData(executionEngine))
 
-        let functionPassManager = LLVMCreateFunctionPassManagerForModule(globalModule)
+        let functionPassManager = LLVMCreateFunctionPassManagerForModule(globalModule.ref)
         // Promote allocas to registers.
         LLVMAddPromoteMemoryToRegisterPass(functionPassManager)
         // Do simple "peephole" and bit-twiddling optimizations.

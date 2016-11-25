@@ -1,5 +1,6 @@
 import Foundation
 import LLVM_C
+import LLVM
 import Parse
 import AST
 import IRGen
@@ -13,7 +14,7 @@ public final class Driver {
     private var parser: Parser?
     private let irGenerator: IRGenerator
     private let targetMachine: LLVMTargetMachineRef
-    private var module: LLVMModuleRef?
+    private var module: LLVM.Module!
 
     public init(outputStream: TextOutputStream = Stdout(), using irGenerator: IRGenerator? = nil) {
         LLVMInitializeNativeTarget()
@@ -21,7 +22,7 @@ public final class Driver {
         LLVMInitializeNativeAsmParser()
 
         self.outputStream = outputStream
-        self.irGenerator = irGenerator ?? IRGenerator(context: LLVMGetGlobalContext())
+        self.irGenerator = irGenerator ?? IRGenerator()
 
         let targetTriple = LLVMGetDefaultTargetTriple()
         defer { LLVMDisposeMessage(targetTriple) }
@@ -157,7 +158,7 @@ public final class Driver {
 
         var errorMessage: UnsafeMutablePointer<CChar>? = nil
         outputFilePath.withCString { outputFilePathCString in
-            if LLVMTargetMachineEmitToFile(targetMachine, module,
+            if LLVMTargetMachineEmitToFile(targetMachine, module.ref,
                                            UnsafeMutablePointer(mutating: outputFilePathCString),
                                            codeGenFileType, &errorMessage) != 0 {
                 outputStream.write("\(String(cString: errorMessage!))\n")
@@ -184,18 +185,17 @@ public final class Driver {
     }
 
     private func initModuleAndFunctionPassManager(moduleName: String) {
-        LLVMDisposeModule(module)
-        module = LLVMModuleCreateWithName(moduleName)
+        module = LLVM.Module(name: moduleName)
 
         let dataLayout = LLVMCreateTargetDataLayout(targetMachine)
-        LLVMSetModuleDataLayout(module, dataLayout)
+        LLVMSetModuleDataLayout(module.ref, dataLayout)
         LLVMDisposeTargetData(dataLayout)
 
         let targetTriple = LLVMGetDefaultTargetTriple()
-        LLVMSetTarget(module, targetTriple)
+        module.target = String(cString: targetTriple!)
         LLVMDisposeMessage(targetTriple)
 
-        let functionPassManager = LLVMCreateFunctionPassManagerForModule(module)
+        let functionPassManager = LLVMCreateFunctionPassManagerForModule(module.ref)
         // Promote allocas to registers.
         LLVMAddPromoteMemoryToRegisterPass(functionPassManager)
         // Do simple "peephole" and bit-twiddling optimizations.

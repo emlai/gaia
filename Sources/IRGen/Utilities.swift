@@ -1,4 +1,5 @@
 import LLVM_C
+import LLVM
 import AST
 
 public enum CompileError: SourceCodeError {
@@ -40,72 +41,44 @@ extension FunctionCall {
     }
 }
 
-let LLVMFalse: LLVMBool = 0
-let LLVMTrue: LLVMBool = 1
-
 public struct Argument {
-    let type: LLVMTypeRef
+    let type: LLVM.TypeType
     let sourceLocation: SourceLocation
 }
 
-/// Convenience wrapper around `LLVMGetParams` that returns the parameter array.
-func LLVMGetParams(_ function: LLVMValueRef) -> [LLVMValueRef] {
-    var parameters = ContiguousArray<LLVMValueRef?>(repeating: nil, count: Int(LLVMCountParams(function)))
-    parameters.withUnsafeMutableBufferPointer { LLVMGetParams(function, $0.baseAddress) }
-    return parameters.map { $0! }
-}
-
-/// Convenience wrapper around `LLVMGetParamTypes` that returns the parameter type array.
-func LLVMGetParamTypes(_ functionType: LLVMTypeRef) -> [LLVMTypeRef] {
-    var parameters = ContiguousArray<LLVMTypeRef?>(repeating: nil, count: Int(LLVMCountParamTypes(functionType)))
-    parameters.withUnsafeMutableBufferPointer { LLVMGetParamTypes(functionType, $0.baseAddress) }
-    return parameters.map { $0! }
-}
-
-extension LLVMValueRef {
-    var returnType: LLVMTypeRef {
-        return LLVMGetReturnType(LLVMGetElementType(LLVMTypeOf(self)))
-    }
-}
-
-extension LLVMTypeRef {
+extension LLVM.TypeType {
     /// The Gaia type name corresponding to the LLVM type of this value.
     var gaiaTypeName: String {
         switch self {
-            case LLVMVoidType(): return "Void"
-            case LLVMInt1Type(): return "Bool"
-            case LLVMInt8Type(): return "Int8"
-            case LLVMInt16Type(): return "Int16"
-            case LLVMInt32Type(): return "Int32"
-            case LLVMInt64Type(): return "Int"
-            case LLVMFloatType(): return "Float32"
-            case LLVMDoubleType(): return "Float"
+            case LLVM.VoidType(): return "Void"
+            case LLVM.IntType.int1(): return "Bool"
+            case LLVM.IntType.int8(): return "Int8"
+            case LLVM.IntType.int16(): return "Int16"
+            case LLVM.IntType.int32(): return "Int32"
+            case LLVM.IntType.int64(): return "Int"
+            case LLVM.RealType.float(): return "Float32"
+            case LLVM.RealType.double(): return "Float"
             default:
-                if LLVMGetTypeKind(self) == LLVMPointerTypeKind
-                && LLVMGetElementType(self) == LLVMInt8Type() {
+                if self.kind == LLVMPointerTypeKind
+                && LLVMGetElementType(self.ref) == LLVM.IntType.int8().ref {
                     return "String"
                 }
-
-                let typeName = LLVMPrintTypeToString(self)
-                defer { LLVMDisposeMessage(typeName) }
-                fatalError("unsupported type `\(String(cString: typeName!))`")
+                fatalError("unsupported type `\(self.string)`")
         }
     }
 }
 
-extension LLVMTypeRef {
-    init?(gaiaTypeName: String) {
-        switch gaiaTypeName {
-            case "Void": self = LLVMVoidType()
-            case "Bool": self = LLVMInt1Type()
-            case "Int8": self = LLVMInt8Type()
-            case "Int16": self = LLVMInt16Type()
-            case "Int32": self = LLVMInt32Type()
-            case "Int64", "Int": self = LLVMInt64Type()
-            case "Float32": self = LLVMFloatType()
-            case "Float64", "Float": self = LLVMDoubleType()
-            case "String": self = LLVMPointerType(LLVMInt8Type(), 0)
-            default: return nil
-        }
+func llvmTypeFromGaiaTypeName(_ gaiaTypeName: String) -> LLVM.TypeType? {
+    switch gaiaTypeName {
+        case "Void": return LLVM.VoidType()
+        case "Bool": return LLVM.IntType.int1()
+        case "Int8": return LLVM.IntType.int8()
+        case "Int16": return LLVM.IntType.int16()
+        case "Int32": return LLVM.IntType.int32()
+        case "Int64", "Int": return LLVM.IntType.int64()
+        case "Float32": return LLVM.RealType.float()
+        case "Float64", "Float": return LLVM.RealType.double()
+        case "String": return LLVM.PointerType(type: LLVM.IntType.int8(), addressSpace: 0)
+        default: return nil
     }
 }
