@@ -16,13 +16,14 @@ public final class Driver {
     private let targetMachine: LLVM.TargetMachine
     private var module: LLVM.Module!
 
-    public init(outputStream: TextOutputStream = Stdout(), using irGenerator: IRGenerator? = nil) {
+    public init(outputStream: TextOutputStream = Stdout(),
+                using irGenerator: IRGenerator = IRGenerator()) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
 
         self.outputStream = outputStream
-        self.irGenerator = irGenerator ?? IRGenerator()
+        self.irGenerator = irGenerator
 
         let target = try! LLVM.Target(fromTriple: LLVM.defaultTargetTriple)
         targetMachine = LLVM.TargetMachine(target: target, targetTriple: LLVM.defaultTargetTriple,
