@@ -5,28 +5,18 @@ import AST
 import IRGen
 import Driver
 
-public final class REPL {
-    private var outputStream: TextOutputStream
+public final class REPL: Driver {
     private var infoOutputStream: TextOutputStream
     private let parser: Parser
-    private let astPrinter: ASTPrinter
-    private let irGenerator: IRGenerator
     private var variables: [String: VariableDefinition]
-    private var globalModule: LLVM.Module!
     private var executionEngine: LLVM.ExecutionEngine!
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
                 infoOutputStream: TextOutputStream = Stdout()) {
-        LLVMInitializeNativeTarget()
-        LLVMInitializeNativeAsmPrinter()
-        LLVMInitializeNativeAsmParser()
-
-        self.outputStream = outputStream
         self.infoOutputStream = infoOutputStream
         parser = Parser(readingFrom: inputStream)
-        astPrinter = ASTPrinter(printingTo: outputStream)
-        irGenerator = IRGenerator()
         variables = [:]
+        super.init(outputStream: outputStream)
         initModuleAndFunctionPassManager()
     }
 
@@ -35,13 +25,7 @@ public final class REPL {
         while true {
             infoOutputStream.write("\(count)> ")
             do {
-                switch try parser.nextToken() {
-                    case .eof: return
-                    case .newline: break
-                    case .keyword(.func): try handleFunctionDefinition()
-                    case .keyword(.extern): try handleExternFunctionDeclaration()
-                    default: try handleToplevelExpression()
-                }
+                if try !handleNextToken(parser: parser) { return }
             } catch {
                 outputStream.write("\(error)\n")
                 try? parser.skipLine()
@@ -50,17 +34,7 @@ public final class REPL {
         }
     }
 
-    private func handleFunctionDefinition() throws {
-        let function = try parser.parseFunctionDefinition()
-        irGenerator.registerFunctionDefinition(function)
-    }
-
-    private func handleExternFunctionDeclaration() throws {
-        let prototype = try parser.parseExternFunctionDeclaration()
-        irGenerator.registerExternFunctionDeclaration(prototype)
-    }
-
-    private func handleToplevelExpression() throws {
+    public override func handleToplevelExpression(parser: Parser) throws {
         // Evaluate a top-level statement into an anonymous function.
         let statement = try parser.parseStatement()
 
@@ -110,25 +84,11 @@ public final class REPL {
     }
 
     private func initModuleAndFunctionPassManager() {
-        globalModule = LLVM.Module(name: "gaiajit")
-        executionEngine = try! LLVM.ExecutionEngine(for: globalModule)
-        globalModule.dataLayout = executionEngine.targetData.string
-
-        let functionPassManager = LLVM.FunctionPassManager(for: globalModule)
-        // Promote allocas to registers.
-        functionPassManager.addPromoteMemoryToRegisterPass()
-        // Do simple "peephole" and bit-twiddling optimizations.
-        functionPassManager.addInstructionCombiningPass()
-        // Reassociate expressions.
-        functionPassManager.addReassociatePass()
-        // Eliminate common subexpressions.
-        functionPassManager.addGVNPass()
-        // Simplify the control flow graph (deleting unreachable blocks, etc.).
-        functionPassManager.addCFGSimplificationPass()
-        functionPassManager.initialize()
-
-        irGenerator.module = globalModule
-        irGenerator.functionPassManager = functionPassManager
-        compileCoreLibrary(with: irGenerator)
+        module = LLVM.Module(name: "gaiajit")
+        executionEngine = try! LLVM.ExecutionEngine(for: module)
+        module.dataLayout = executionEngine.targetData.string
+        irGenerator.module = module
+        initFunctionPassManager(for: module)
+        compileCoreLibrary()
     }
 }

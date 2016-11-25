@@ -9,12 +9,11 @@ import IRGen
 typealias Process = Task
 #endif
 
-public final class Driver {
-    private var outputStream: TextOutputStream
-    private var parser: Parser?
-    private let irGenerator: IRGenerator
+open class Driver {
+    public var outputStream: TextOutputStream
+    public let irGenerator: IRGenerator
     private let targetMachine: LLVM.TargetMachine
-    private var module: LLVM.Module!
+    public var module: LLVM.Module!
 
     public init(outputStream: TextOutputStream = Stdout(),
                 using irGenerator: IRGenerator = IRGenerator()) {
@@ -87,8 +86,9 @@ public final class Driver {
 
     /// Returns whether the compilation completed successfully.
     private func compile(files inputFileNames: [String]) -> Bool {
-        initModuleAndFunctionPassManager(moduleName: determineModuleName(for: inputFileNames))
-        compileCoreLibrary(with: irGenerator)
+        initModule(moduleName: determineModuleName(for: inputFileNames))
+        initFunctionPassManager(for: module)
+        compileCoreLibrary()
         for inputFileName in inputFileNames {
             if !compileFile(inputFileName) { return false }
         }
@@ -102,22 +102,27 @@ public final class Driver {
             outputStream.write("error reading input file \(inputFileName), aborting\n")
             return false
         }
-        parser = Parser(readingFrom: inputFile)
 
-        while true {
-            do {
-                switch try parser!.nextToken() {
-                    case .eof: return true
-                    case .newline: break
-                    case .keyword(.func): try handleFunctionDefinition()
-                    case .keyword(.extern): try handleExternFunctionDeclaration()
-                    default: try handleToplevelExpression()
-                }
-            } catch {
-                emitError(error, file: inputFileName)
-                return false
-            }
+        do {
+            let parser = Parser(readingFrom: inputFile)
+            while try handleNextToken(parser: parser) { }
+            return true
+        } catch {
+            emitError(error, file: inputFileName)
+            return false
         }
+    }
+
+    /// Returns whether there are still tokens to be handled.
+    public func handleNextToken(parser: Parser) throws -> Bool {
+        switch try parser.nextToken() {
+            case .eof: return false
+            case .newline: break
+            case .keyword(.func): try handleFunctionDefinition(parser: parser)
+            case .keyword(.extern): try handleExternFunctionDeclaration(parser: parser)
+            default: try handleToplevelExpression(parser: parser)
+        }
+        return true
     }
 
     private func emitError(_ error: Error, file: String) {
@@ -145,27 +150,30 @@ public final class Driver {
         try! targetMachine.emitToFile(module, atPath: outputFilePath, fileType: codeGenFileType)
     }
 
-    private func handleFunctionDefinition() throws {
-        let function = try parser!.parseFunctionDefinition()
+    public func handleFunctionDefinition(parser: Parser) throws {
+        let function = try parser.parseFunctionDefinition()
         irGenerator.registerFunctionDefinition(function)
     }
 
-    private func handleExternFunctionDeclaration() throws {
-        let prototype = try parser!.parseExternFunctionDeclaration()
+    public func handleExternFunctionDeclaration(parser: Parser) throws {
+        let prototype = try parser.parseExternFunctionDeclaration()
         irGenerator.registerExternFunctionDeclaration(prototype)
     }
 
-    private func handleToplevelExpression() throws {
+    open func handleToplevelExpression(parser: Parser) throws {
         // Add top-level statements into main function.
-        let statement = try parser!.parseStatement()
+        let statement = try parser.parseStatement()
         try irGenerator.appendToMainFunction(statement)
     }
 
-    private func initModuleAndFunctionPassManager(moduleName: String) {
+    public func initModule(moduleName: String) {
         module = LLVM.Module(name: moduleName)
         module.dataLayout = targetMachine.dataLayout.string
         module.target = LLVM.defaultTargetTriple
+        irGenerator.module = module
+    }
 
+    public func initFunctionPassManager(for module: LLVM.Module) {
         let functionPassManager = LLVM.FunctionPassManager(for: module)
         // Promote allocas to registers.
         functionPassManager.addPromoteMemoryToRegisterPass()
@@ -178,9 +186,15 @@ public final class Driver {
         // Simplify the control flow graph (deleting unreachable blocks, etc.).
         functionPassManager.addCFGSimplificationPass()
         functionPassManager.initialize()
-
-        irGenerator.module = module
         irGenerator.functionPassManager = functionPassManager
+    }
+
+    public func compileCoreLibrary() {
+        let onError = { print("Core library compilation failed.") }
+        guard let coreLibraryFiles = try? findCoreLibraryFiles() else { return onError() }
+        for file in coreLibraryFiles {
+            if !compileFile(file) { return onError() }
+        }
     }
 }
 
@@ -190,13 +204,4 @@ private func findCoreLibraryFiles() throws -> [String] {
     }
     let coreLibPath = gaiaHome + "/Core/"
     return try FileManager.default.contentsOfDirectory(atPath: coreLibPath).map { coreLibPath + $0 }
-}
-
-public func compileCoreLibrary(with irGenerator: IRGenerator) {
-    let driver = Driver(using: irGenerator)
-    let onError = { print("Core library compilation failed.") }
-    guard let coreLibraryFiles = try? findCoreLibraryFiles() else { return onError() }
-    for file in coreLibraryFiles {
-        if !driver.compileFile(file) { return onError() }
-    }
 }
