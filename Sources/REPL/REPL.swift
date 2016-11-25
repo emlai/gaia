@@ -13,7 +13,7 @@ public final class REPL {
     private let irGenerator: IRGenerator
     private var variables: [String: VariableDefinition]
     private var globalModule: LLVM.Module!
-    private var executionEngine: LLVMExecutionEngineRef?
+    private var executionEngine: LLVM.ExecutionEngine!
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
                 infoOutputStream: TextOutputStream = Stdout()) {
@@ -82,9 +82,7 @@ public final class REPL {
         irGenerator.arguments = []
         let ir = try function.acceptVisitor(irGenerator) as! LLVM.Function
 
-        // JIT the anonymous function.
-        let result = LLVMRunFunction(executionEngine, ir.ref, 0, nil)!
-        defer { LLVMDisposeGenericValue(result) }
+        let result = executionEngine.runFunction(ir, args: [])
 
         outputStream.write(evaluate(result, type: ir.functionType.returnType))
         outputStream.write("\n")
@@ -96,16 +94,16 @@ public final class REPL {
         variables[variableDefinition.name] = variableDefinition
     }
 
-    private func evaluate(_ result: LLVMGenericValueRef, type: LLVM.TypeType) -> String {
+    private func evaluate(_ result: LLVM.GenericValue, type: LLVM.TypeType) -> String {
         switch type {
             case LLVM.VoidType(): return ""
-            case LLVM.IntType.int1(): return LLVMGenericValueToInt(result, 0) != 0 ? "true" : "false"
-            case LLVM.IntType.int64(): return String(Int64(bitPattern: LLVMGenericValueToInt(result, 1)))
-            case LLVM.RealType.double(): return String(LLVMGenericValueToFloat(type.ref, result))
+            case LLVM.IntType.int1(): return result.asInt(signed: false) != 0 ? "true" : "false"
+            case LLVM.IntType.int64(): return String(Int64(bitPattern: result.asInt(signed: true)))
+            case LLVM.RealType.double(): return String(result.asFloat(type: type))
             default:
                 if type.kind == LLVMPointerTypeKind
                 && LLVMGetElementType(type.ref) == LLVM.IntType.int8().ref {
-                    return "\"\(String(cString: LLVMGenericValueToPointer(result).assumingMemoryBound(to: Int8.self)))\""
+                    return "\"\(String(cString: result.asPointer!.assumingMemoryBound(to: Int8.self)))\""
                 }
                 return "unknown type '\(type.string)'"
         }
@@ -113,26 +111,21 @@ public final class REPL {
 
     private func initModuleAndFunctionPassManager() {
         globalModule = LLVM.Module(name: "gaiajit")
+        executionEngine = try! LLVM.ExecutionEngine(for: globalModule)
+        globalModule.dataLayout = executionEngine.targetData.string
 
-        var errorMessage: UnsafeMutablePointer<CChar>? = nil
-        if LLVMCreateExecutionEngineForModule(&executionEngine, globalModule.ref, &errorMessage) != 0 {
-            defer { LLVMDisposeMessage(errorMessage) }
-            fatalError(String(cString: errorMessage!))
-        }
-        LLVMSetModuleDataLayout(globalModule.ref, LLVMGetExecutionEngineTargetData(executionEngine))
-
-        let functionPassManager = LLVMCreateFunctionPassManagerForModule(globalModule.ref)
+        let functionPassManager = LLVM.FunctionPassManager(for: globalModule)
         // Promote allocas to registers.
-        LLVMAddPromoteMemoryToRegisterPass(functionPassManager)
+        functionPassManager.addPromoteMemoryToRegisterPass()
         // Do simple "peephole" and bit-twiddling optimizations.
-        LLVMAddInstructionCombiningPass(functionPassManager)
+        functionPassManager.addInstructionCombiningPass()
         // Reassociate expressions.
-        LLVMAddReassociatePass(functionPassManager)
+        functionPassManager.addReassociatePass()
         // Eliminate common subexpressions.
-        LLVMAddGVNPass(functionPassManager)
+        functionPassManager.addGVNPass()
         // Simplify the control flow graph (deleting unreachable blocks, etc.).
-        LLVMAddCFGSimplificationPass(functionPassManager)
-        LLVMInitializeFunctionPassManager(functionPassManager)
+        functionPassManager.addCFGSimplificationPass()
+        functionPassManager.initialize()
 
         irGenerator.module = globalModule
         irGenerator.functionPassManager = functionPassManager

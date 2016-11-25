@@ -13,7 +13,7 @@ public final class Driver {
     private var outputStream: TextOutputStream
     private var parser: Parser?
     private let irGenerator: IRGenerator
-    private let targetMachine: LLVMTargetMachineRef
+    private let targetMachine: LLVM.TargetMachine
     private var module: LLVM.Module!
 
     public init(outputStream: TextOutputStream = Stdout(), using irGenerator: IRGenerator? = nil) {
@@ -24,23 +24,9 @@ public final class Driver {
         self.outputStream = outputStream
         self.irGenerator = irGenerator ?? IRGenerator()
 
-        let targetTriple = LLVMGetDefaultTargetTriple()
-        defer { LLVMDisposeMessage(targetTriple) }
-
-        var target: LLVMTargetRef? = nil
-        var errorMessage: UnsafeMutablePointer<CChar>? = nil
-        if LLVMGetTargetFromTriple(targetTriple, &target, &errorMessage) != 0 {
-            self.outputStream.write("\(String(cString: errorMessage!))\n")
-            exit(1)
-        }
-
-        targetMachine = LLVMCreateTargetMachine(target, targetTriple, "generic", "",
-                                                LLVMCodeGenLevelNone, LLVMRelocDefault,
-                                                LLVMCodeModelDefault)
-    }
-
-    deinit {
-        LLVMDisposeTargetMachine(targetMachine)
+        let target = try! LLVM.Target(fromTriple: LLVM.defaultTargetTriple)
+        targetMachine = LLVM.TargetMachine(target: target, targetTriple: LLVM.defaultTargetTriple,
+                                           cpu: "generic", features: "", optLevel: LLVMCodeGenLevelNone)
     }
 
     public func compileAndExecute(inputFile: String, stdoutPipe: Pipe? = nil) throws -> Int32? {
@@ -155,17 +141,7 @@ public final class Driver {
 
     private func emitModule(as codeGenFileType: LLVMCodeGenFileType, toPath outputFilePath: String) {
         irGenerator.appendImplicitZeroReturnToMainFunction()
-
-        var errorMessage: UnsafeMutablePointer<CChar>? = nil
-        outputFilePath.withCString { outputFilePathCString in
-            if LLVMTargetMachineEmitToFile(targetMachine, module.ref,
-                                           UnsafeMutablePointer(mutating: outputFilePathCString),
-                                           codeGenFileType, &errorMessage) != 0 {
-                outputStream.write("\(String(cString: errorMessage!))\n")
-                exit(1)
-            }
-        }
-        LLVMDisposeMessage(errorMessage)
+        try! targetMachine.emitToFile(module, atPath: outputFilePath, fileType: codeGenFileType)
     }
 
     private func handleFunctionDefinition() throws {
@@ -186,27 +162,21 @@ public final class Driver {
 
     private func initModuleAndFunctionPassManager(moduleName: String) {
         module = LLVM.Module(name: moduleName)
+        module.dataLayout = targetMachine.dataLayout.string
+        module.target = LLVM.defaultTargetTriple
 
-        let dataLayout = LLVMCreateTargetDataLayout(targetMachine)
-        LLVMSetModuleDataLayout(module.ref, dataLayout)
-        LLVMDisposeTargetData(dataLayout)
-
-        let targetTriple = LLVMGetDefaultTargetTriple()
-        module.target = String(cString: targetTriple!)
-        LLVMDisposeMessage(targetTriple)
-
-        let functionPassManager = LLVMCreateFunctionPassManagerForModule(module.ref)
+        let functionPassManager = LLVM.FunctionPassManager(for: module)
         // Promote allocas to registers.
-        LLVMAddPromoteMemoryToRegisterPass(functionPassManager)
+        functionPassManager.addPromoteMemoryToRegisterPass()
         // Do simple "peephole" and bit-twiddling optimizations.
-        LLVMAddInstructionCombiningPass(functionPassManager)
+        functionPassManager.addInstructionCombiningPass()
         // Reassociate expressions.
-        LLVMAddReassociatePass(functionPassManager)
+        functionPassManager.addReassociatePass()
         // Eliminate common subexpressions.
-        LLVMAddGVNPass(functionPassManager)
+        functionPassManager.addGVNPass()
         // Simplify the control flow graph (deleting unreachable blocks, etc.).
-        LLVMAddCFGSimplificationPass(functionPassManager)
-        LLVMInitializeFunctionPassManager(functionPassManager)
+        functionPassManager.addCFGSimplificationPass()
+        functionPassManager.initialize()
 
         irGenerator.module = module
         irGenerator.functionPassManager = functionPassManager

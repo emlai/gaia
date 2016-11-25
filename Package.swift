@@ -12,6 +12,6 @@ let package = Package(
         Target(name: "gaiac", dependencies: ["Driver"]),
     ],
     dependencies: [
-        .Package(url: "https://github.com/emlai/LLVM.swift", "0.1.0")
+        .Package(url: "https://github.com/emlai/LLVM.swift", "0.2.0")
     ]
 )

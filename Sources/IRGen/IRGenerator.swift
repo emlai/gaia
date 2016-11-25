@@ -9,9 +9,7 @@ public final class IRGenerator: ASTVisitor {
     private var functionDefinitions: [String: AST.Function]
     private var externFunctionPrototypes: [String: FunctionPrototype]
     private var returnType: LLVM.TypeType?
-    public var functionPassManager: LLVMPassManagerRef? {
-        willSet { LLVMDisposePassManager(functionPassManager) }
-    }
+    public var functionPassManager: LLVM.FunctionPassManager!
     public var module: LLVM.Module!
     public var arguments: [Argument]? // Used to pass function arguments to visitor functions.
 
@@ -264,7 +262,7 @@ public final class IRGenerator: ASTVisitor {
             _ = builder.buildReturnVoid()
         }
         precondition(llvmFunction.verify(failureAction: LLVMPrintMessageAction))
-        LLVMRunFunctionPassManager(functionPassManager, llvmFunction.ref)
+        functionPassManager.run(on: llvmFunction)
         return llvmFunction
     }
 
