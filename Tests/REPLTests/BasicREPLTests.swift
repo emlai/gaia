@@ -132,6 +132,10 @@ class BasicREPLTests: XCTestCase {
     func testIdentifierWithUnderscore() {
         XCTAssertEqual(runREPL("_=1\n__=2\n_a=3\na_=4\n_\n__\n_a\na_"), "1\n2\n3\n4\n")
     }
+    
+    func testUnaryPlusAndMinus() {
+        XCTAssertEqual(runREPL("+1\n-1\n"), "1\n-1\n")
+    }
 
     static var allTests = [
         ("testIntegerLiteralExpression", testIntegerLiteralExpression),
@@ -153,6 +157,7 @@ class BasicREPLTests: XCTestCase {
         ("testVariableDefinition", testVariableDefinition),
         ("testCoreLibraryFunctionCall", testCoreLibraryFunctionCall),
         ("testIdentifierWithUnderscore", testIdentifierWithUnderscore),
+        ("testUnaryPlusAndMinus", testUnaryPlusAndMinus),
     ]
 }
 

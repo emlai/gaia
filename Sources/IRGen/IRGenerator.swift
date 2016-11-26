@@ -45,7 +45,8 @@ public final class IRGenerator: ASTVisitor {
     public func visit(unaryOperation: UnaryOperation) throws -> LLVM.ValueType {
         switch unaryOperation.operator {
             case .not: return try buildLogicalNegation(of: unaryOperation.operand)
-            case .plus, .minus: return try buildUnaryOperation(unaryOperation)
+            case .plus: return try buildUnaryOperation(unaryOperation, { _ in { a, _ in a } }, { _ in { a, _ in a } })
+            case .minus: return try buildUnaryOperation(unaryOperation, Builder.buildNeg, Builder.buildFNeg)
         }
     }
 
@@ -359,12 +360,17 @@ public final class IRGenerator: ASTVisitor {
         }
     }
 
-    private func buildUnaryOperation(_ operation: UnaryOperation) throws -> LLVM.ValueType {
+    typealias UnaryOperationBuildFunc =
+        (LLVM.Builder) -> (LLVM.ValueType, String) -> LLVM.ValueType!
+
+    private func buildUnaryOperation(_ operation: UnaryOperation,
+                                     _ integerOperationBuildFunc: UnaryOperationBuildFunc,
+                                     _ floatingPointOperationBuildFunc: UnaryOperationBuildFunc) throws -> LLVM.ValueType {
         let operand = try operation.operand.acceptVisitor(self)
 
         switch operand.type {
-            case LLVM.IntType.int64(): return builder.buildNeg(operand, name: "negtmp")
-            case LLVM.RealType.double(): return builder.buildFNeg(operand, name: "negtmp")
+            case LLVM.IntType.int64(): return integerOperationBuildFunc(builder)(operand, "negtmp")
+            case LLVM.RealType.double(): return floatingPointOperationBuildFunc(builder)(operand, "negtmp")
             default: break
         }
 
