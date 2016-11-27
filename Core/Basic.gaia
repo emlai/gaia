@@ -1,0 +1,17 @@
+/*
+func +(a, b)
+    return __builtin_add(a, b)
+end
+
+func -(a, b)
+    return __builtin_sub(a, b)
+end
+
+func *(a, b)
+    return __builtin_mul(a, b)
+end
+
+func /(a, b)
+    return __builtin_div(a, b)
+end
+*/

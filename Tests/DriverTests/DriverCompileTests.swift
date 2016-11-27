@@ -184,6 +184,11 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "success\nsuccess\nsuccess\nsuccess\n")
     }
 
+    func testFunctionOverloading() throws {
+        let result = try compileAndExecute(file: "testFunctionOverloading")
+        XCTAssertEqual(result.programOutput, "int\nbool\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -212,6 +217,7 @@ class DriverCompileTests: XCTestCase {
         ("testInvalidUnaryPlus", testInvalidUnaryPlus),
         ("testInvalidNumberOfParametersInOperatorFunction", testInvalidNumberOfParametersInOperatorFunction),
         ("testImplicitlyDefinedOperators", testImplicitlyDefinedOperators),
+        ("testFunctionOverloading", testFunctionOverloading),
     ]
 }
 

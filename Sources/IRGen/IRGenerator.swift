@@ -6,7 +6,7 @@ import AST
 public final class IRGenerator: ASTVisitor {
     private let builder: LLVM.Builder
     private var namedValues: [String: LLVM.ValueType]
-    private var functionDefinitions: [String: AST.Function]
+    private var functionDefinitions: [String: [AST.Function]]
     private var externFunctionPrototypes: [String: FunctionPrototype]
     private var returnType: LLVM.TypeType?
     public var functionPassManager: LLVM.FunctionPassManager!
@@ -91,7 +91,7 @@ public final class IRGenerator: ASTVisitor {
         if let externPrototype = externFunctionPrototypes[functionCall.functionName] {
             prototype = externPrototype
             nonExternFunction = nil
-        } else if let function = functionDefinitions[functionCall.functionName] {
+        } else if let functions = functionDefinitions[functionCall.functionName], let function = functions.last {
             prototype = function.prototype
             nonExternFunction = function
         } else {
@@ -306,7 +306,9 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func registerFunctionDefinition(_ function: AST.Function) {
-        functionDefinitions[function.prototype.name] = function
+        var array = functionDefinitions[function.prototype.name] ?? []
+        array.append(function)
+        functionDefinitions[function.prototype.name] = array
     }
 
     public func registerExternFunctionDeclaration(_ prototype: FunctionPrototype) {
@@ -324,13 +326,34 @@ public final class IRGenerator: ASTVisitor {
         }
 
         // If not, check whether we can codegen the declaration from some existing prototype.
-        if let astFunction = functionDefinitions[functionName] {
+        if let astFunction = findMatchingFunctionDefinition(name: functionName, arguments: arguments) {
             self.arguments = arguments
             let function = try astFunction.prototype.acceptVisitor(self)
             return Optional.some(function as! LLVM.Function)
         }
 
         return nil // No existing prototype exists.
+    }
+
+    private func findMatchingFunctionDefinition(name: String, arguments: [Argument]) -> AST.Function? {
+        guard let candidates = functionDefinitions[name] else { return nil }
+
+        for candidate in candidates.reversed() {
+            let parameterTypes: [LLVM.TypeType?] = candidate.prototype.parameters.map {
+                guard let type = $0.type else { return nil }
+                return llvmTypeFromGaiaTypeName(type)! // TODO: error handling
+            }
+            var match = true
+            for (parameterType, argumentType) in zip(parameterTypes, arguments.map({ $0.type })) {
+                guard let parameterType = parameterType else { continue }
+                if parameterType != argumentType {
+                    match = false
+                    break
+                }
+            }
+            if match { return candidate }
+        }
+        return nil
     }
 
     private func createParameterAllocas(_ prototype: FunctionPrototype, _ function: LLVM.Function) {
@@ -343,7 +366,10 @@ public final class IRGenerator: ASTVisitor {
 
     private func buildFunctionBody(of astFunction: AST.Function, arguments: [Argument]) throws
     -> (function: LLVM.Function, body: [LLVM.ValueType]) {
-        let llvmFunction = try lookupFunction(named: astFunction.prototype.name, arguments: arguments)!
+        guard let llvmFunction = try lookupFunction(named: astFunction.prototype.name, arguments: arguments) else {
+            let message = "no function named `\(astFunction.prototype.name)` with matching parameter types to call"
+            throw CompileError.invalidType(location: SourceLocation(line: 1, column: 1), message: message)
+        }
         let basicBlock = llvmFunction.appendBasicBlock("entry")
         builder.positionAtEnd(block: basicBlock)
         let namedValuesBackup = namedValues

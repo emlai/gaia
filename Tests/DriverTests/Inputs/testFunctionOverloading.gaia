@@ -1,0 +1,10 @@
+func foo(a: Int)
+    print("int")
+end
+
+func foo(a: Bool)
+    print("bool")
+end
+
+foo(1)
+foo(false)
