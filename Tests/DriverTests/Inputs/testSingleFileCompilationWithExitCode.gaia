@@ -2,4 +2,4 @@ func foo(a, b)
     return (a + b) / 2
 end
 
-foo(6, 8)
+return foo(6, 8)

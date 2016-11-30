@@ -470,16 +470,15 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func appendToMainFunction(_ statement: Statement) throws {
-        if let returnInstruction = getMainFunction().basicBlocks.last?.lastInstruction {
-            returnInstruction.eraseFromParent()
-        }
         builder.positionAtEnd(block: getMainFunction().basicBlocks.last!)
-        _ = builder.buildReturn(value: try statement.acceptVisitor(self))
+        _ = try statement.acceptVisitor(self)
     }
 
     /// Creates a `return 0` statement at the end of `main` if it doesn't already have a return statement.
     public func appendImplicitZeroReturnToMainFunction() {
-        if getMainFunction().basicBlocks.last?.lastInstruction != nil { return }
+        if let instruction = getMainFunction().basicBlocks.last?.lastInstruction, instruction.opCode == LLVMRet {
+            return
+        }
         builder.positionAtEnd(block: getMainFunction().basicBlocks.last!)
         _ = builder.buildReturn(value: LLVM.IntConstant.type(LLVM.IntType.int64(), value: 0, signExtend: false))
     }
@@ -488,7 +487,7 @@ public final class IRGenerator: ASTVisitor {
         if let mainFunction = module.functionByName("main") { return mainFunction }
 
         // Create main function if it doesn't exist.
-        let mainFunctionType = LLVM.FunctionType(returnType: LLVM.IntType.int32(), paramTypes: [], isVarArg: false)
+        let mainFunctionType = LLVM.FunctionType(returnType: LLVM.IntType.int64(), paramTypes: [], isVarArg: false)
         let mainFunction = LLVM.Function(name: "main", type: mainFunctionType, inModule: module)
         _ = mainFunction.appendBasicBlock("entry")
         return mainFunction
