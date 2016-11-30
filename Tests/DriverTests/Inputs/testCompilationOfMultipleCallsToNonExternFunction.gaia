@@ -1,6 +1,6 @@
-func foo(x)
+func foo(x) {
     return 1
-end
+}
 
 foo(0)
 return foo(0)

@@ -1,5 +1,5 @@
-func foo(a, b)
+func foo(a, b) {
     return (a + b) / 2
-end
+}
 
 return foo(6, 8)

@@ -73,6 +73,17 @@ public final class Parser {
         }
     }
 
+    /// Checks that the given token is the current token, then advances to the next token.
+    private func skipExpectedToken(_ token: Token, _ message: String? = nil) throws {
+        try expectToken(token, message)
+        _ = try nextToken()
+    }
+
+    /// If the given token is the current token, advances to the next token. Otherwise does nothing.
+    private func skipOptionalToken(_ token: Token) throws {
+        if self.token == token { _ = try nextToken() }
+    }
+
     func parseFunctionPrototype() throws -> FunctionPrototype {
         _ = try nextToken() // consume 'func'
 
@@ -155,15 +166,15 @@ public final class Parser {
         let prototype = try parseFunctionPrototype()
         var body = [Statement]()
 
-        if token == .newline {
-            // Multi-line function
-            while try nextToken() != .keyword(.end) {
-                body.append(try parseStatement())
-            }
-        } else {
-            // One-line function
+        try skipOptionalToken(.newline)
+        try skipExpectedToken(.leftBrace)
+        try skipOptionalToken(.newline)
+
+        while token != .rightBrace {
             body.append(try parseStatement())
+            try skipOptionalToken(.newline)
         }
+        try skipExpectedToken(.rightBrace)
 
         return Function(prototype: prototype, body: body)
     }
@@ -313,21 +324,29 @@ public final class Parser {
         let ifLocation = tokenSourceLocation!
         _ = try nextToken() // consume 'if'
         let condition = try parseExpression()
-        try expectToken(.newline, "expected `then` or newline after `if` condition")
+        try skipOptionalToken(.newline)
+        try skipExpectedToken(.leftBrace, "expected `then` or `{` after `if` condition")
+        try skipOptionalToken(.newline)
         var thenBranch = [Statement]()
         var elseBranch = [Statement]()
 
-        while try nextToken() != .keyword(.else) {
+        while token != .rightBrace {
             thenBranch.append(try parseStatement())
-            try expectToken(.newline)
+            try skipExpectedToken(.newline)
         }
-        _ = try nextToken() // consume 'else'
-        try expectToken(.newline)
-        while try nextToken() != .keyword(.end) {
+
+        try skipExpectedToken(.rightBrace)
+        try skipOptionalToken(.newline)
+        try skipExpectedToken(.keyword(.else))
+        try skipOptionalToken(.newline)
+        try skipExpectedToken(.leftBrace)
+        try skipOptionalToken(.newline)
+
+        while token != .rightBrace {
             elseBranch.append(try parseStatement())
-            try expectToken(.newline)
+            try skipExpectedToken(.newline)
         }
-        _ = try nextToken() // consume 'end'
+        try skipExpectedToken(.rightBrace)
         try expectToken(.newline)
 
         return IfStatement(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)

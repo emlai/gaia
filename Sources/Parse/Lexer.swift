@@ -3,7 +3,6 @@ import AST
 
 public enum Keyword: String {
     case `func`
-    case end
     case extern
     case `if`
     case `then`
@@ -20,6 +19,8 @@ public enum Token: Equatable, CustomStringConvertible {
     case integerLiteral(Int64)
     case floatingPointLiteral(Float64)
     case stringLiteral(String)
+    case leftBrace
+    case rightBrace
     case leftParenthesis
     case rightParenthesis
     case assignmentOperator
@@ -54,6 +55,8 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.identifier, .identifier): return true
             case (.integerLiteral, .integerLiteral): return true
             case (.stringLiteral, .stringLiteral): return true
+            case (.leftBrace, .leftBrace): return true
+            case (.rightBrace, .rightBrace): return true
             case (.leftParenthesis, .leftParenthesis): return true
             case (.rightParenthesis, .rightParenthesis): return true
             case (.assignmentOperator, .assignmentOperator): return true
@@ -78,6 +81,8 @@ public enum Token: Equatable, CustomStringConvertible {
             case .integerLiteral(let value): return "`\(value)`"
             case .floatingPointLiteral(let value): return "`\(value)`"
             case .stringLiteral(let value): return "`\"\(value)\"`"
+            case .leftBrace: return "`{`"
+            case .rightBrace: return "`}`"
             case .leftParenthesis: return "`(`"
             case .rightParenthesis: return "`)`"
             case .assignmentOperator: return "`=`"
@@ -195,6 +200,8 @@ final class Lexer {
 
         switch character {
             case nil: return (currentSourceLocation, .eof)
+            case "{"?: return (currentSourceLocation, .leftBrace)
+            case "}"?: return (currentSourceLocation, .rightBrace)
             case "("?: return (currentSourceLocation, .leftParenthesis)
             case ")"?: return (currentSourceLocation, .rightParenthesis)
             case ":"?: return (currentSourceLocation, .colon)

@@ -1,11 +1,11 @@
 extern func putchar(ch)
 
-func foo(x)
-    if x < 48
+func foo(x) {
+    if x < 48 {
         putchar(x+15)
-    else
+    } else {
         putchar(x-15)
-    end
-end
+    }
+}
 
 foo(48)

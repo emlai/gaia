@@ -1,12 +1,12 @@
-func /(a, b)
+func /(a, b) {
     print(a)
     print(b)
-end
+}
 
-func <(a, b)
+func <(a, b) {
     print(b)
     print(a)
-end
+}
 
 "foo" / "bar"
 "foo" < "bar"

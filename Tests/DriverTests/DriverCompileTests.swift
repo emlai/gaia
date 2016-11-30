@@ -35,7 +35,7 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.compilerOutput,
                        "testUnknownVariableErrorMessageSourceLocationValidity.gaia:4:8: " +
                        "error: unknown variable 'y'\n" +
-                       "    if y < 48\n" +
+                       "    if y < 48 {\n" +
                        "       ^\n")
     }
 
@@ -175,7 +175,7 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.compilerOutput,
                        "testInvalidNumberOfParametersInOperatorFunction.gaia:1:6: " +
                        "error: invalid number of parameters for operator `+`\n" +
-                       "func +(a, b, c)\n" +
+                       "func +(a, b, c) {\n" +
                        "     ^\n")
     }
 

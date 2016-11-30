@@ -1,5 +1,5 @@
-func +(a)
+func +(a) {
     return a
-end
+}
 
 print(++"foo")

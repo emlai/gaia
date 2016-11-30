@@ -1,5 +1,5 @@
-func foo(a: Int)
+func foo(a: Int) {
     return a
-end
+}
 
 foo("bar")

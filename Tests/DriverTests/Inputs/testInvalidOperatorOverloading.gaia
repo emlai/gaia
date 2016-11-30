@@ -1,6 +1,6 @@
-func >(a, b)
+func >(a, b) {
     print(a)
     print(b)
-end
+}
 
 "foo" > "bar"

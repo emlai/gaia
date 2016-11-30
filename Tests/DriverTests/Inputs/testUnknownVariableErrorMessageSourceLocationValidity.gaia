@@ -1,11 +1,11 @@
 
 
-func foo(x)
-    if y < 48
+func foo(x) {
+    if y < 48 {
         return 1
-    else
+    } else {
         return 2
-    end
-end
+    }
+}
 
 foo(48)

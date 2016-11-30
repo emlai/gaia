@@ -1,5 +1,5 @@
-func isZero(a)
+func isZero(a) {
     return a == 0
-end
+}
 
 print(if isZero(0.0) then "success" else "failure")
