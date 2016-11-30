@@ -184,6 +184,19 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "success\nsuccess\nsuccess\nsuccess\n")
     }
 
+    func testCompilationToJavaScript() throws {
+        if !checkCommandExists("node") {
+            print("WARNING: Node.js executable not found, skipping test `DriverCompileTests.testCompilationToJavaScript`.")
+            return
+        }
+        if !checkCommandExists("emcc") {
+            print("WARNING: Emscripten executable not found, skipping test `DriverCompileTests.testCompilationToJavaScript`.")
+            return
+        }
+        let programOutput = try compileToJavaScriptAndExecute(files: "testCoreLibraryFunction")
+        XCTAssertEqual(programOutput, "Hello, World!\n")
+    }
+
     static var allTests = [
         ("testSingleFileCompilationWithExitCode", testSingleFileCompilationWithExitCode),
         ("testExternAndMultipleStatementsInMainFunction", testExternAndMultipleStatementsInMainFunction),
@@ -212,6 +225,7 @@ class DriverCompileTests: XCTestCase {
         ("testInvalidUnaryPlus", testInvalidUnaryPlus),
         ("testInvalidNumberOfParametersInOperatorFunction", testInvalidNumberOfParametersInOperatorFunction),
         ("testImplicitlyDefinedOperators", testImplicitlyDefinedOperators),
+        ("testCompilationToJavaScript", testCompilationToJavaScript),
     ]
 }
 
@@ -253,4 +267,64 @@ private func compileAndExecute(files fileNamesWithoutExtension: String...) throw
 
 private func compileAndExecute(file fileNameWithoutExtension: String) throws -> CompileAndExecuteResult {
     return try compileAndExecute(files: fileNameWithoutExtension)
+}
+
+private func compileToJavaScriptAndExecute(files fileNamesWithoutExtension: String...) throws -> String {
+    let inputFileNames = fileNamesWithoutExtension.map { $0 + ".gaia" }
+    compileToLLVMBitcode(files: inputFileNames)
+    let bitcodeFiles = inputFileNames.map { $0 + ".bc" }
+    compileLLVMBitcodeToJavaScript(files: bitcodeFiles)
+    try bitcodeFiles.forEach { try FileManager.default.removeItem(atPath: $0) }
+    let programOutput = executeJavaScript(file: "a.out.js")
+    try FileManager.default.removeItem(atPath: "a.out.js")
+    return programOutput
+}
+
+private func compileToLLVMBitcode(files inputFileNames: [String]) {
+    let inputsDirectoryPath = URL(fileURLWithPath: #file).deletingLastPathComponent().path + "/Inputs"
+    if !FileManager.default.changeCurrentDirectoryPath(inputsDirectoryPath) { fatalError() }
+
+    let compilerOutput = TextOutputStreamBuffer()
+    let driver = Driver(outputStream: compilerOutput)
+    driver.emitInLLVMFormat = true
+    let compilationSucceeded = driver.compile(inputFiles: inputFileNames)
+
+    XCTAssert(compilationSucceeded)
+    for inputFileName in inputFileNames {
+        XCTAssert(FileManager.default.fileExists(atPath: inputFileName + ".bc"))
+    }
+}
+
+private func compileLLVMBitcodeToJavaScript(files inputFileNames: [String]) {
+    let emcc = Process()
+    emcc.launchPath = "/usr/bin/env"
+    emcc.arguments = ["emcc"] + inputFileNames
+    emcc.launch()
+    emcc.waitUntilExit()
+    XCTAssertEqual(emcc.terminationStatus, 0)
+}
+
+private func executeJavaScript(file: String) -> String {
+    let stdoutPipe = Pipe()
+    let node = Process()
+    node.launchPath = "/usr/bin/env"
+    node.arguments = ["node", file]
+    node.standardOutput = stdoutPipe
+    node.launch()
+    node.waitUntilExit()
+    XCTAssertEqual(node.terminationStatus, 0)
+    guard let programOutput = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
+        XCTFail()
+        return ""
+    }
+    return programOutput
+}
+
+private func checkCommandExists(_ command: String) -> Bool {
+    let process = Process()
+    process.launchPath = "/usr/bin/env"
+    process.arguments = ["type", command]
+    process.launch()
+    process.waitUntilExit()
+    return process.terminationStatus == 0
 }
