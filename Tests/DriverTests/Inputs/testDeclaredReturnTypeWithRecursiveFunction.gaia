@@ -6,4 +6,4 @@ func factorial(n) -> Int
     end
 end
 
-factorial(4)
+return factorial(4)

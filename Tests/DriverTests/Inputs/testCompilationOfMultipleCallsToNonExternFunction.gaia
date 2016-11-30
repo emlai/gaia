@@ -3,4 +3,4 @@ func foo(x)
 end
 
 foo(0)
-foo(0)
+return foo(0)

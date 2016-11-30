@@ -12,6 +12,7 @@ typealias Process = Task
 open class Driver {
     public var outputStream: TextOutputStream
     public let irGenerator: IRGenerator
+    public var emitInLLVMFormat: Bool
     private let targetMachine: LLVM.TargetMachine
     public var module: LLVM.Module!
 
@@ -23,6 +24,7 @@ open class Driver {
 
         self.outputStream = outputStream
         self.irGenerator = irGenerator
+        self.emitInLLVMFormat = false
 
         let target = try! LLVM.Target(fromTriple: LLVM.defaultTargetTriple)
         targetMachine = LLVM.TargetMachine(target: target, targetTriple: LLVM.defaultTargetTriple,
@@ -92,7 +94,7 @@ open class Driver {
         for inputFileName in inputFileNames {
             if !compileFile(inputFileName) { return false }
         }
-        emitModule(as: LLVMObjectFile, toPath: determineModuleName(for: inputFileNames) + ".o")
+        emitModule(as: LLVMObjectFile, toPath: determineModuleName(for: inputFileNames))
         return true
     }
 
@@ -147,7 +149,19 @@ open class Driver {
 
     private func emitModule(as codeGenFileType: LLVMCodeGenFileType, toPath outputFilePath: String) {
         irGenerator.appendImplicitZeroReturnToMainFunction()
-        try! targetMachine.emitToFile(module, atPath: outputFilePath, fileType: codeGenFileType)
+
+        if emitInLLVMFormat {
+            if codeGenFileType == LLVMObjectFile {
+                if (outputFilePath + ".bc").withCString({ LLVMWriteBitcodeToFile(irGenerator.module.ref, $0) }) != 0 {
+                    fatalError("LLVMWriteBitcodeToFile failed")
+                }
+            }
+            if codeGenFileType == LLVMAssemblyFile {
+                fatalError("LLVM IR emit to file not implemented")
+            }
+        } else {
+            try! targetMachine.emitToFile(module, atPath: outputFilePath + ".o", fileType: codeGenFileType)
+        }
     }
 
     public func handleFunctionDefinition(parser: Parser) throws {
