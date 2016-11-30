@@ -1,4 +1,4 @@
-func foo(a, /*b,*/ c) {
+function foo(a, /*b,*/ c) {
     return a/c
 }
 

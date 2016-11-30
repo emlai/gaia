@@ -1,6 +1,6 @@
-extern func putchar(ch)
+extern function putchar(ch)
 
-func foo(uppercase) {
+function foo(uppercase) {
     if uppercase {
         putchar(65)
         putchar(66)

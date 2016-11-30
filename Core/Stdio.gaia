@@ -1,6 +1,6 @@
-extern func puts(string: String)
+extern function puts(string: String)
 
 /** Writes the given string to standard output, terminated with a newline. */
-func print(string: String) {
+function print(string: String) {
     puts(string)
 }

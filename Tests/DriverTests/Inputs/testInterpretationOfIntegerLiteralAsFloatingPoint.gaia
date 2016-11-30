@@ -1,4 +1,4 @@
-func isZero(a) {
+function isZero(a) {
     return a == 0
 }
 

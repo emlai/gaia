@@ -1,4 +1,4 @@
-func foo(x) {
+function foo(x) {
     return 1
 }
 

@@ -1,4 +1,4 @@
-func >(a, b) {
+function >(a, b) {
     print(a)
     print(b)
 }

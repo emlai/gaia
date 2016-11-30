@@ -2,7 +2,7 @@ import Foundation
 import AST
 
 public enum Keyword: String {
-    case `func`
+    case function
     case extern
     case `if`
     case `then`

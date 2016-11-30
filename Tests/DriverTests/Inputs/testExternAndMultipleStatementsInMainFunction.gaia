@@ -1,4 +1,4 @@
-extern func putchar(ch)
+extern function putchar(ch)
 
 putchar(71)
 putchar(97)

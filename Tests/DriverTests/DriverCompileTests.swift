@@ -173,10 +173,10 @@ class DriverCompileTests: XCTestCase {
     func testInvalidNumberOfParametersInOperatorFunction() throws {
         let result = try compileAndExecute(file: "testInvalidNumberOfParametersInOperatorFunction")
         XCTAssertEqual(result.compilerOutput,
-                       "testInvalidNumberOfParametersInOperatorFunction.gaia:1:6: " +
+                       "testInvalidNumberOfParametersInOperatorFunction.gaia:1:10: " +
                        "error: invalid number of parameters for operator `+`\n" +
-                       "func +(a, b, c) {\n" +
-                       "     ^\n")
+                       "function +(a, b, c) {\n" +
+                       "         ^\n")
     }
 
     func testImplicitlyDefinedOperators() throws {

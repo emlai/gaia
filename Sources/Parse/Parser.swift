@@ -85,7 +85,7 @@ public final class Parser {
     }
 
     func parseFunctionPrototype() throws -> FunctionPrototype {
-        _ = try nextToken() // consume 'func'
+        _ = try nextToken() // consume 'function'
 
         enum NameOrOperator {
             case name(String)

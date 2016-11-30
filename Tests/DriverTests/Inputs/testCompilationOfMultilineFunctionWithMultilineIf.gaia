@@ -1,6 +1,6 @@
-extern func putchar(ch)
+extern function putchar(ch)
 
-func foo(x) {
+function foo(x) {
     if x < 48 {
         putchar(x+15)
     } else {

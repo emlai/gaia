@@ -120,7 +120,7 @@ open class Driver {
         switch try parser.nextToken() {
             case .eof: return false
             case .newline: break
-            case .keyword(.func): try handleFunctionDefinition(parser: parser)
+            case .keyword(.function): try handleFunctionDefinition(parser: parser)
             case .keyword(.extern): try handleExternFunctionDeclaration(parser: parser)
             default: try handleToplevelExpression(parser: parser)
         }

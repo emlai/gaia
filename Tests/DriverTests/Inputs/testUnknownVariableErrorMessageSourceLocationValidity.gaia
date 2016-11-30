@@ -1,6 +1,6 @@
 
 
-func foo(x) {
+function foo(x) {
     if y < 48 {
         return 1
     } else {

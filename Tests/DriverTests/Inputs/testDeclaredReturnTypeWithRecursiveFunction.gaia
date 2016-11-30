@@ -1,4 +1,4 @@
-func factorial(n) -> Int {
+function factorial(n) -> Int {
     if n == 0 {
         return 1
     } else {

@@ -71,47 +71,47 @@ class BasicREPLTests: XCTestCase {
         var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
         stdoutBuffer.withUnsafeMutableBufferPointer {
             setbuf(stdout, $0.baseAddress)
-            XCTAssertEqual(runREPL("extern func puts(s: String)\nif true {\n\tputs(\"foo\")\n} else {\n\tputs(\"bar\")\n}\n"), "\n")
-            XCTAssertEqual(runREPL("extern func puts(s: String)\nif false {\n\tputs(\"foo\")\n} else {\n\tputs(\"bar\")\n}\n"), "\n")
-            XCTAssertEqual(runREPL("extern func puts(s: String)\nif 0 {\n\tputs(\"a\")\n} else {\n\tputs(\"b\")\n}\n"), "'if' condition requires a Bool expression\n")
+            XCTAssertEqual(runREPL("extern function puts(s: String)\nif true {\n\tputs(\"foo\")\n} else {\n\tputs(\"bar\")\n}\n"), "\n")
+            XCTAssertEqual(runREPL("extern function puts(s: String)\nif false {\n\tputs(\"foo\")\n} else {\n\tputs(\"bar\")\n}\n"), "\n")
+            XCTAssertEqual(runREPL("extern function puts(s: String)\nif 0 {\n\tputs(\"a\")\n} else {\n\tputs(\"b\")\n}\n"), "'if' condition requires a Bool expression\n")
             XCTAssertEqual(String(cString: $0.baseAddress!), "foo\nbar\n")
             setbuf(stdout, nil)
         }
     }
 
     func testSimpleFunctionDefinitionAndCall() {
-        XCTAssertEqual(runREPL("func foo() { return 666 }\nfoo()\nfoo()\n"), "666\n666\n")
-        XCTAssertEqual(runREPL("func foo() { return 666 * 777 }\nfoo()\nfoo()\n"), "517482\n517482\n")
-        XCTAssertEqual(runREPL("func foo() { return if false then 666 else 777 }\nfoo()\nfoo()\n"), "777\n777\n")
-        XCTAssertEqual(runREPL("func foo() { return 666 }\nfunc foo() { return 777 }\nfoo()\nfoo()\n"), "777\n777\n")
+        XCTAssertEqual(runREPL("function foo() { return 666 }\nfoo()\nfoo()\n"), "666\n666\n")
+        XCTAssertEqual(runREPL("function foo() { return 666 * 777 }\nfoo()\nfoo()\n"), "517482\n517482\n")
+        XCTAssertEqual(runREPL("function foo() { return if false then 666 else 777 }\nfoo()\nfoo()\n"), "777\n777\n")
+        XCTAssertEqual(runREPL("function foo() { return 666 }\nfunction foo() { return 777 }\nfoo()\nfoo()\n"), "777\n777\n")
     }
 
     func testSimpleFunctionWithParameters() {
-        XCTAssertEqual(runREPL("func foo(a) { return a * 0.5 }\nfoo(1.0)\nfoo(2.0)\n"), "0.5\n1.0\n")
-        XCTAssertEqual(runREPL("func foo(a, b) { return a / b }\nfoo(1.0, 0.5)\nfoo(0.1, 10.0)\n"), "2.0\n0.01\n")
-        XCTAssertEqual(runREPL("func foo(a,b,c) { return a+b-c }\nfoo(1.0,2.0,3.0)\nfoo(-2.0,-1.0,-0.0)\n"), "0.0\n-3.0\n")
+        XCTAssertEqual(runREPL("function foo(a) { return a * 0.5 }\nfoo(1.0)\nfoo(2.0)\n"), "0.5\n1.0\n")
+        XCTAssertEqual(runREPL("function foo(a, b) { return a / b }\nfoo(1.0, 0.5)\nfoo(0.1, 10.0)\n"), "2.0\n0.01\n")
+        XCTAssertEqual(runREPL("function foo(a,b,c) { return a+b-c }\nfoo(1.0,2.0,3.0)\nfoo(-2.0,-1.0,-0.0)\n"), "0.0\n-3.0\n")
     }
 
     func testSimpleFunctionWithParametersOfVariousTypes() {
-        XCTAssertEqual(runREPL("func foo(a) { return -a }\nfoo(1.0)\nfoo(1)\n"), "-1.0\n-1\n")
-        XCTAssertEqual(runREPL("func foo(a, b) { return a / b }\nfoo(1.0, 0.5)\nfoo(2, 2)\n"), "2.0\n1\n")
-        XCTAssertEqual(runREPL("func foo(a,b,c) { return (a==b)!=c }\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n"), "false\nfalse\n")
+        XCTAssertEqual(runREPL("function foo(a) { return -a }\nfoo(1.0)\nfoo(1)\n"), "-1.0\n-1\n")
+        XCTAssertEqual(runREPL("function foo(a, b) { return a / b }\nfoo(1.0, 0.5)\nfoo(2, 2)\n"), "2.0\n1\n")
+        XCTAssertEqual(runREPL("function foo(a,b,c) { return (a==b)!=c }\nfoo(1,2,false)\nfoo(1.5,1.5,true)\n"), "false\nfalse\n")
     }
 
     func testExternCFunctionWithoutReturnValue() {
         var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
         stdoutBuffer.withUnsafeMutableBufferPointer {
             setbuf(stdout, $0.baseAddress)
-            XCTAssertEqual(runREPL("extern func putchar(ch)\nputchar(64)\nputchar(65)\n"), "\n\n")
+            XCTAssertEqual(runREPL("extern function putchar(ch)\nputchar(64)\nputchar(65)\n"), "\n\n")
             XCTAssertEqual(String(cString: $0.baseAddress!), "@A")
             setbuf(stdout, nil)
         }
     }
 
     func testArgumentMismatchError() {
-        XCTAssertEqual(runREPL("func foo(a,b) { return a-b }\nfoo(1)\n"), "wrong number of arguments, expected 2\n")
-        XCTAssertEqual(runREPL("func foo(a,b) { return a-b }\nfoo()\n"), "wrong number of arguments, expected 2\n")
-        XCTAssertEqual(runREPL("func answer() { return 42 }\nanswer(false)\n"), "wrong number of arguments, expected 0\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo(1)\n"), "wrong number of arguments, expected 2\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo()\n"), "wrong number of arguments, expected 2\n")
+        XCTAssertEqual(runREPL("function answer() { return 42 }\nanswer(false)\n"), "wrong number of arguments, expected 0\n")
     }
 
     func testVariableDefinition() {

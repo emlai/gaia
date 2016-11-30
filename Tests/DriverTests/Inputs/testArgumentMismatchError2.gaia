@@ -1,4 +1,4 @@
-func foo(a: Float) {
+function foo(a: Float) {
     return a
 }
 

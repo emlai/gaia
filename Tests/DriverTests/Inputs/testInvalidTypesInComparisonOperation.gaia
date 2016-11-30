@@ -1,2 +1,2 @@
-extern func putchar(ch)
+extern function putchar(ch)
 5.0 != putchar(0)

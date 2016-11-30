@@ -1,4 +1,4 @@
-func foo(a) {
+function foo(a) {
     return !!b
 }
 

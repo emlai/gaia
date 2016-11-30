@@ -1,14 +1,14 @@
 /** Returns the smaller of `a` and `b`. */
-func min(a, b) {
+function min(a, b) {
     return if a <= b then a else b
 }
 
 /** Returns the larger of `a` and `b`. */
-func max(a, b) {
+function max(a, b) {
     return if a >= b then a else b
 }
 
 /** Returns the absolute value of `n`. */
-func abs(n) {
+function abs(n) {
     return if n >= 0 then n else -n
 }
