@@ -16,8 +16,9 @@ public final class REPL: Driver {
         self.infoOutputStream = infoOutputStream
         parser = Parser(readingFrom: inputStream)
         variables = [:]
-        super.init(outputStream: outputStream)
+        super.init(outputStream: outputStream, allowRedefinitions: true)
         initModuleAndFunctionPassManager()
+        compileCoreLibrary()
     }
 
     public func run() {
@@ -44,8 +45,11 @@ public final class REPL: Driver {
             return
         }
 
-        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: nil)
         var body = variables.map { $0.value as Statement }
+        try body.forEach { _ = try $0.acceptVisitor(typeChecker) }
+        let returnType = try statement.acceptVisitor(typeChecker)?.rawValue
+        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: returnType,
+                                          at: /* dummy */ SourceLocation(line: 1, column: 1))
         if let expression = statement as? Expression {
             body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
         } else {
@@ -89,6 +93,5 @@ public final class REPL: Driver {
         module.dataLayout = executionEngine.targetData.string
         irGenerator.module = module
         initFunctionPassManager(for: module)
-        compileCoreLibrary()
     }
 }

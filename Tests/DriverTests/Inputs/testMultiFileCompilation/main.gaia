@@ -1,1 +1,1 @@
-putsWrapper("hello")
+printWrapper("hello")

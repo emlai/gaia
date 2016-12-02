@@ -1,5 +1,0 @@
-extern function puts(string: String)
-
-function putsWrapper(string: String) {
-    puts(string)
-}

@@ -120,13 +120,16 @@ public final class Parser {
 
         switch nameOrOperator {
             case .name(let name):
-                return FunctionPrototype(name: name, parameters: parameters, returnType: returnType)
+                return FunctionPrototype(name: name, parameters: parameters,
+                                         returnType: returnType, at: nameLocation)
             case .op(let op):
                 switch parameters.count {
-                    case 2: return BinaryOperatorPrototype(operator: op, lhs: parameters[0],
-                                                           rhs: parameters[1], returnType: returnType)
-                    case 1: return UnaryOperatorPrototype(operator: UnaryOperator(from: op)!,
-                                                          operand: parameters[0], returnType: returnType)
+                    case 2:
+                        return BinaryOperatorPrototype(operator: op, lhs: parameters[0], rhs: parameters[1],
+                                                       returnType: returnType, at: nameLocation)
+                    case 1:
+                        return UnaryOperatorPrototype(operator: UnaryOperator(from: op)!, operand: parameters[0],
+                                                      returnType: returnType, at: nameLocation)
                     default: throw ParseError.invalidNumberOfParameters("invalid number of parameters " +
                                                                         "for operator `\(op.rawValue)`",
                                                                         location: nameLocation)
@@ -147,18 +150,21 @@ public final class Parser {
 
     private func parseParameter() throws -> Parameter {
         guard case .identifier(let parameterName)? = token else { preconditionFailure() }
+        let parameterNameLocation = tokenSourceLocation!
 
         switch try nextToken() {
             case .colon:
                 switch try nextToken() {
                     case .identifier(let typeName):
                         _ = try nextToken() // consume parameter type
-                        return Parameter(name: parameterName, type: typeName)
+                        return Parameter(name: parameterName, type: typeName, at: parameterNameLocation)
                     default:
                         throw ParseError.unexpectedToken("expected parameter type after `:`")
                 }
-            case .comma, .rightParenthesis: return Parameter(name: parameterName, type: nil)
-            default: throw ParseError.unexpectedToken("unexpected \(token!)")
+            case .comma, .rightParenthesis:
+                return Parameter(name: parameterName, type: nil, at: parameterNameLocation)
+            default:
+                throw ParseError.unexpectedToken("unexpected \(token!)")
         }
     }
 

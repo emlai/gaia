@@ -109,9 +109,9 @@ class BasicREPLTests: XCTestCase {
     }
 
     func testArgumentMismatchError() {
-        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo(1)\n"), "wrong number of arguments, expected 2\n")
-        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo()\n"), "wrong number of arguments, expected 2\n")
-        XCTAssertEqual(runREPL("function answer() { return 42 }\nanswer(false)\n"), "wrong number of arguments, expected 0\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo(1)\n"), "no matching function to call with argument types (Int)\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo()\n"), "no matching function to call with argument types ()\n")
+        XCTAssertEqual(runREPL("function answer() { return 42 }\nanswer(false)\n"), "no matching function to call with argument types (Bool)\n")
     }
 
     func testVariableDefinition() {
@@ -132,7 +132,7 @@ class BasicREPLTests: XCTestCase {
     func testIdentifierWithUnderscore() {
         XCTAssertEqual(runREPL("_=1\n__=2\n_a=3\na_=4\n_\n__\n_a\na_"), "1\n2\n3\n4\n")
     }
-    
+
     func testUnaryPlusAndMinus() {
         XCTAssertEqual(runREPL("+1\n-1\n"), "1\n-1\n")
     }

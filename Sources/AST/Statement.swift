@@ -1,6 +1,4 @@
-public protocol Statement: ASTNode {
-    var sourceLocation: SourceLocation { get }
-}
+public protocol Statement: ASTNode { }
 
 public class IfStatement: Statement {
     public let condition: Expression

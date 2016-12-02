@@ -106,6 +106,7 @@ public class UnaryOperation: Expression {
     public let `operator`: UnaryOperator
     public let operand: Expression
     public let sourceLocation: SourceLocation
+    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
 
     public init(operator: UnaryOperator, operand: Expression, at sourceLocation: SourceLocation) {
         self.operator = `operator`
@@ -123,6 +124,7 @@ public class BinaryOperation: Expression {
     public let leftOperand: Expression
     public let rightOperand: Expression
     public let sourceLocation: SourceLocation /// Location of the operator.
+    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
 
     public init(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression,
                 at sourceLocation: SourceLocation) {
@@ -141,6 +143,7 @@ public class FunctionCall: Expression {
     public let functionName: String
     public let arguments: [Expression]
     public let sourceLocation: SourceLocation
+    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
 
     public init(functionName: String, arguments: [Expression], at sourceLocation: SourceLocation) {
         self.functionName = functionName

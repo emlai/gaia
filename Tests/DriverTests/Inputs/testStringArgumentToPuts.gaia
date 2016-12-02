@@ -1,4 +1,3 @@
-extern function puts(s: String))
 foo = "🦄"
 puts(foo)
 puts("")

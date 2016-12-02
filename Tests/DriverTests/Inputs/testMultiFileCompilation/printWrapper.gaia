@@ -1,0 +1,3 @@
+function printWrapper(string: String) {
+    print(string)
+}

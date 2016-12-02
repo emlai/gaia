@@ -8,7 +8,7 @@ public final class IRGenerator: ASTVisitor {
     private var namedValues: [String: LLVM.ValueType]
     private var functionDefinitions: [String: AST.Function]
     private var externFunctionPrototypes: [String: FunctionPrototype]
-    private var returnType: LLVM.TypeType?
+    private var returnType: Type?
     public var functionPassManager: LLVM.FunctionPassManager!
     public var module: LLVM.Module!
     public var arguments: [Argument]? // Used to pass function arguments to visitor functions.
@@ -18,28 +18,18 @@ public final class IRGenerator: ASTVisitor {
         namedValues = [:]
         functionDefinitions = [:]
         externFunctionPrototypes = [:]
-        returnType = LLVM.VoidType() // dummy initial value
+        returnType = .void // dummy initial value
     }
 
     public func visit(variableDefinition: VariableDefinition) throws -> LLVM.ValueType {
         let value = try variableDefinition.value.acceptVisitor(self)
-
-        if namedValues[variableDefinition.name] != nil {
-            throw CompileError.redefinition(location: variableDefinition.sourceLocation,
-                                            message: "redefinition of `\(variableDefinition.name)`")
-        }
-
         let alloca = builder.buildAlloca(type: value.type, name: variableDefinition.name)
         namedValues[variableDefinition.name] = alloca
         return builder.buildStore(value, to: alloca)
     }
 
     public func visit(variable: Variable) throws -> LLVM.ValueType {
-        guard let namedValue = namedValues[variable.name] else {
-            throw CompileError.unknownIdentifier(location: variable.sourceLocation,
-                                                 message: "unknown variable '\(variable.name)'")
-        }
-        return builder.buildLoad(namedValue, name: variable.name)
+        return builder.buildLoad(namedValues[variable.name]!, name: variable.name)
     }
 
     public func visit(unaryOperation: UnaryOperation) throws -> LLVM.ValueType {
@@ -95,13 +85,7 @@ public final class IRGenerator: ASTVisitor {
             prototype = function.prototype
             nonExternFunction = function
         } else {
-            throw CompileError.unknownIdentifier(location: functionCall.sourceLocation,
-                                                 message: "unknown function name '\(functionCall.functionName)'")
-        }
-
-        let parameterCount = prototype.parameters.count
-        if parameterCount != functionCall.arguments.count {
-            throw CompileError.argumentMismatch(message: "wrong number of arguments, expected \(parameterCount)")
+            fatalError("unknown function name '\(functionCall.functionName)'")
         }
 
         var argumentValues = [ValueType]()
@@ -116,10 +100,10 @@ public final class IRGenerator: ASTVisitor {
         }
 
         let callee: LLVM.Function
+        self.returnType = functionCall.returnType!
         if let function = nonExternFunction {
             callee = try getInstantiation(of: function, for: arguments!)
         } else {
-            self.returnType = LLVM.VoidType()
             callee = try module.functionByName(functionCall.functionName) ?? prototype.acceptVisitor(self) as! LLVM.Function
         }
 
@@ -165,10 +149,6 @@ public final class IRGenerator: ASTVisitor {
     public func visit(ifStatement: IfStatement) throws -> LLVM.ValueType {
         // condition
         let conditionValue = try ifStatement.condition.acceptVisitor(self)
-        if conditionValue.type != LLVM.IntType.int1() {
-            throw CompileError.invalidType(location: ifStatement.condition.sourceLocation,
-                                           message: "'if' condition requires a Bool expression")
-        }
         let function = builder.insertBlock.parent!
         let thenBlock = function.appendBasicBlock("then")
         let elseBlock = function.appendBasicBlock("else")
@@ -202,10 +182,6 @@ public final class IRGenerator: ASTVisitor {
     public func visit(ifExpression: IfExpression) throws -> LLVM.ValueType {
         // condition
         let conditionValue = try ifExpression.condition.acceptVisitor(self)
-        if conditionValue.type != LLVM.IntType.int1() {
-            throw CompileError.invalidType(location: ifExpression.condition.sourceLocation,
-                                           message: "'if' condition requires a Bool expression")
-        }
         let function = builder.insertBlock.parent!
         let thenBlock = function.appendBasicBlock("then")
         let elseBlock = function.appendBasicBlock("else")
@@ -218,11 +194,6 @@ public final class IRGenerator: ASTVisitor {
         // else
         builder.positionAtEnd(block: elseBlock)
         let elseValue = try ifExpression.else.acceptVisitor(self)
-
-        if thenValue.type != elseValue.type {
-            throw CompileError.invalidType(location: ifExpression.sourceLocation,
-                                           message: "'then' and 'else' branches must have same type")
-        }
 
         // merge
         let mergeBlock = function.appendBasicBlock("ifcont")
@@ -243,19 +214,7 @@ public final class IRGenerator: ASTVisitor {
 
     public func visit(function: AST.Function) throws -> LLVM.ValueType {
         let arguments = self.arguments!
-        var (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
-
-        if let instruction = body.last as? LLVM.InstructionType, instruction.opCode == LLVMRet {
-            if instruction.operandCount == 0 {
-                returnType = LLVM.VoidType()
-            } else {
-                returnType = instruction.operandAtIndex(instruction.operandCount - 1).type
-            }
-        }
-
-        // Recreate function with correct return type.
-        llvmFunction.delete()
-        (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
+        let (llvmFunction, body) = try buildFunctionBody(of: function, arguments: arguments)
 
         if let instruction = body.last as? LLVM.InstructionType, instruction.opCode == LLVMRet {
         } else {
@@ -268,25 +227,12 @@ public final class IRGenerator: ASTVisitor {
     }
 
     public func visit(prototype: FunctionPrototype) throws -> LLVM.ValueType {
-        var actualParameterTypes = [TypeType]()
-
-        for (argument, declaredParameter) in zip(arguments!, prototype.parameters) {
-            if let declaredType = declaredParameter.type {
-                let type = llvmTypeFromGaiaTypeName(declaredType)! // TODO: error handling
-                if argument.type != type {
-                    let message = "invalid argument type `\(argument.type.gaiaTypeName)`, expected `\(declaredType)`"
-                    throw CompileError.invalidType(location: argument.sourceLocation, message: message)
-                }
-                actualParameterTypes.append(type)
-            } else {
-                actualParameterTypes.append(argument.type)
-            }
-        }
+        let actualParameterTypes = arguments!.map { $0.type }
 
         if let declaredReturnType = prototype.returnType {
-            returnType = llvmTypeFromGaiaTypeName(declaredReturnType)! // TODO: error handling
+            returnType = Type(rawValue: declaredReturnType)! // TODO: error handling
         }
-        let functionType = LLVM.FunctionType(returnType: returnType!,
+        let functionType = LLVM.FunctionType(returnType: returnType!.llvmType,
                                              paramTypes: actualParameterTypes, isVarArg: false)
         let function = LLVM.Function(name: prototype.name, type: functionType, inModule: module)
         let parameterValues = function.params
@@ -374,23 +320,12 @@ public final class IRGenerator: ASTVisitor {
             default: break
         }
 
-        do {
-            // It wasn't a built-in operator. Check if it's a user-defined one.
-            return try FunctionCall(from: operation).acceptVisitor(self)
-        } catch CompileError.unknownIdentifier {
-            throw CompileError.invalidType(location: operation.operand.sourceLocation,
-                                           message: "invalid operand type `\(operand.type.gaiaTypeName)` " +
-                                                    "for unary `\(operation.operator.rawValue)`")
-        }
+        // It wasn't a built-in operator. Check if it's a user-defined one.
+        return try FunctionCall(from: operation).acceptVisitor(self)
     }
 
     private func buildLogicalNegation(of expression: Expression) throws -> LLVM.ValueType {
         let operand = try expression.acceptVisitor(self)
-
-        if operand.type != LLVM.IntType.int1() {
-            throw CompileError.invalidType(location: expression.sourceLocation,
-                                           message: "logical negation requires a Bool operand")
-        }
         let falseConstant = LLVM.IntConstant.type(LLVM.IntType.int1(), value: 0, signExtend: false)
         return builder.buildICmp(LLVMIntEQ, left: operand, right: falseConstant, name: "negtmp")
     }
@@ -425,14 +360,8 @@ public final class IRGenerator: ASTVisitor {
             default: break
         }
 
-        do {
-            // It wasn't a built-in operator. Check if it's a user-defined one.
-            return try FunctionCall(from: operation).acceptVisitor(self)
-        } catch CompileError.unknownIdentifier {
-            throw CompileError.invalidType(location: operation.sourceLocation,
-                                           message: "invalid types `\(lhs.type.gaiaTypeName)` and " +
-                                                    "`\(rhs.type.gaiaTypeName)` for comparison operation")
-        }
+        // It wasn't a built-in operator. Check if it's a user-defined one.
+        return try FunctionCall(from: operation).acceptVisitor(self)
     }
 
     typealias BinaryOperationBuildFunc =
@@ -453,14 +382,8 @@ public final class IRGenerator: ASTVisitor {
             default: break
         }
 
-        do {
-            // It wasn't a built-in operator. Check if it's a user-defined one.
-            return try FunctionCall(from: operation).acceptVisitor(self)
-        } catch CompileError.unknownIdentifier {
-            throw CompileError.invalidType(location: operation.sourceLocation,
-                                           message: "invalid types `\(lhs.type.gaiaTypeName)` and " +
-                                                    "`\(rhs.type.gaiaTypeName)` for arithmetic operation")
-        }
+        // It wasn't a built-in operator. Check if it's a user-defined one.
+        return try FunctionCall(from: operation).acceptVisitor(self)
     }
 
     private func createEntryBlockAlloca(for function: LLVM.Function, name: String, type: LLVM.TypeType) -> LLVM.AllocaInstruction {

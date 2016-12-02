@@ -3,6 +3,7 @@ import LLVM_C
 import LLVM
 import Parse
 import AST
+import SemanticAnalysis
 import IRGen
 
 #if os(Linux)
@@ -11,18 +12,20 @@ typealias Process = Task
 
 open class Driver {
     public var outputStream: TextOutputStream
+    public let typeChecker: TypeChecker
     public let irGenerator: IRGenerator
     public var emitInLLVMFormat: Bool
     private let targetMachine: LLVM.TargetMachine
     public var module: LLVM.Module!
 
-    public init(outputStream: TextOutputStream = Stdout(),
+    public init(outputStream: TextOutputStream = Stdout(), allowRedefinitions: Bool = false,
                 using irGenerator: IRGenerator = IRGenerator()) {
         LLVMInitializeNativeTarget()
         LLVMInitializeNativeAsmPrinter()
         LLVMInitializeNativeAsmParser()
 
         self.outputStream = outputStream
+        self.typeChecker = TypeChecker(allowRedefinitions: allowRedefinitions)
         self.irGenerator = irGenerator
         self.emitInLLVMFormat = false
 
@@ -166,17 +169,20 @@ open class Driver {
 
     public func handleFunctionDefinition(parser: Parser) throws {
         let function = try parser.parseFunctionDefinition()
+        _ = try function.acceptVisitor(typeChecker)
         irGenerator.registerFunctionDefinition(function)
     }
 
     public func handleExternFunctionDeclaration(parser: Parser) throws {
         let prototype = try parser.parseExternFunctionDeclaration()
+        _ = try prototype.acceptVisitor(typeChecker)
         irGenerator.registerExternFunctionDeclaration(prototype)
     }
 
     open func handleToplevelExpression(parser: Parser) throws {
         // Add top-level statements into main function.
         let statement = try parser.parseStatement()
+        _ = try statement.acceptVisitor(typeChecker)
         try irGenerator.appendToMainFunction(statement)
     }
 

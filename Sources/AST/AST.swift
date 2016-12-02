@@ -1,5 +1,6 @@
 public protocol ASTNode {
     func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult
+    var sourceLocation: SourceLocation { get }
 }
 
 public protocol ASTVisitor {
