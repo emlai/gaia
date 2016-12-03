@@ -52,6 +52,7 @@ public final class IRGenerator: ASTVisitor {
                                                          leftOperand: binaryOperation.leftOperand,
                                                          rightOperand: binaryOperation.rightOperand,
                                                          at: binaryOperation.sourceLocation)
+                temporaryOperation.returnType = binaryOperation.returnType
                 return try buildLogicalNegation(of: temporaryOperation)
             case .lessThan: return try buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
             case .greaterThan:
@@ -59,18 +60,21 @@ public final class IRGenerator: ASTVisitor {
                                                          leftOperand: binaryOperation.rightOperand,
                                                          rightOperand: binaryOperation.leftOperand,
                                                          at: binaryOperation.sourceLocation)
+                temporaryOperation.returnType = binaryOperation.returnType
                 return try temporaryOperation.acceptVisitor(self)
             case .lessThanOrEqual:
                 let temporaryOperation = BinaryOperation(operator: .lessThan,
                                                          leftOperand: binaryOperation.rightOperand,
                                                          rightOperand: binaryOperation.leftOperand,
                                                          at: binaryOperation.sourceLocation)
+                temporaryOperation.returnType = binaryOperation.returnType
                 return try buildLogicalNegation(of: temporaryOperation)
             case .greaterThanOrEqual:
                 let temporaryOperation = BinaryOperation(operator: .lessThan,
                                                          leftOperand: binaryOperation.leftOperand,
                                                          rightOperand: binaryOperation.rightOperand,
                                                          at: binaryOperation.sourceLocation)
+                temporaryOperation.returnType = binaryOperation.returnType
                 return try buildLogicalNegation(of: temporaryOperation)
         }
     }

@@ -79,8 +79,35 @@ public final class TypeChecker: ASTVisitor {
                 }
         }
 
+        // Handle implicitly defined operators.
+        let actualOperation: BinaryOperation
+        switch binaryOperation.operator {
+            case .notEquals:
+                actualOperation = BinaryOperation(operator: .equals,
+                                                  leftOperand: binaryOperation.leftOperand,
+                                                  rightOperand: binaryOperation.rightOperand,
+                                                  at: binaryOperation.sourceLocation)
+            case .greaterThan:
+                actualOperation = BinaryOperation(operator: .lessThan,
+                                                  leftOperand: binaryOperation.rightOperand,
+                                                  rightOperand: binaryOperation.leftOperand,
+                                                  at: binaryOperation.sourceLocation)
+            case .lessThanOrEqual:
+                actualOperation = BinaryOperation(operator: .lessThan,
+                                                  leftOperand: binaryOperation.rightOperand,
+                                                  rightOperand: binaryOperation.leftOperand,
+                                                  at: binaryOperation.sourceLocation)
+            case .greaterThanOrEqual:
+                actualOperation = BinaryOperation(operator: .lessThan,
+                                                  leftOperand: binaryOperation.leftOperand,
+                                                  rightOperand: binaryOperation.rightOperand,
+                                                  at: binaryOperation.sourceLocation)
+            default:
+                actualOperation = binaryOperation
+        }
+
         arguments = [lhsType, rhsType]
-        guard let function = try symbolTable.lookupFunction(name: binaryOperation.operator.rawValue,
+        guard let function = try symbolTable.lookupFunction(name: actualOperation.operator.rawValue,
                                                             argumentTypes: arguments!) else {
             throw TypeError.invalidType(location: binaryOperation.sourceLocation,
                                         message: "invalid types `\(lhsType.rawValue)` and " +

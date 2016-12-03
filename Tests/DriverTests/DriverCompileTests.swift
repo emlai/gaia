@@ -182,10 +182,8 @@ class DriverCompileTests: XCTestCase {
     }
 
     func testImplicitlyDefinedOperators() throws {
-        /*
         let result = try compileAndExecute(file: "testImplicitlyDefinedOperators")
         XCTAssertEqual(result.programOutput, "success\nsuccess\nsuccess\nsuccess\n")
-         */
     }
 
     func testCompilationToJavaScript() throws {
