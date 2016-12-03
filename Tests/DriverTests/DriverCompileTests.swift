@@ -186,6 +186,14 @@ class DriverCompileTests: XCTestCase {
         XCTAssertEqual(result.programOutput, "success\nsuccess\nsuccess\nsuccess\n")
     }
 
+    func testNullArgument() throws {
+        let result = try compileAndExecute(file: "testNullArgument")
+        XCTAssertEqual(result.compilerOutput,
+                       "testNullArgument.gaia:1:1: error: no matching function to call with argument types (Null)\n" +
+                       "print(null)\n" +
+                       "^\n")
+    }
+
     func testCompilationToJavaScript() throws {
         if !checkCommandExists("node") {
             print("WARNING: Node.js executable not found, skipping test `DriverCompileTests.testCompilationToJavaScript`.")

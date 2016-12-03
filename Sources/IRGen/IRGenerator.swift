@@ -150,6 +150,10 @@ public final class IRGenerator: ASTVisitor {
         return builder.buildGlobalStringPointer(stringLiteral.value, name: "")
     }
 
+    public func visit(nullLiteral: NullLiteral) -> LLVM.ValueType {
+        fatalError("not implemented yet")
+    }
+
     public func visit(ifStatement: IfStatement) throws -> LLVM.ValueType {
         // condition
         let conditionValue = try ifStatement.condition.acceptVisitor(self)

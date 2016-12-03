@@ -162,6 +162,10 @@ public final class TypeChecker: ASTVisitor {
         return .string
     }
 
+    public func visit(nullLiteral: NullLiteral) throws -> Type? {
+        return .typeOfNull
+    }
+
     public func visit(ifExpression: IfExpression) throws -> Type? {
         if try ifExpression.condition.acceptVisitor(self) != .bool {
             throw TypeError.invalidType(location: ifExpression.condition.sourceLocation,

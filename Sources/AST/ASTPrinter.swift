@@ -57,6 +57,10 @@ public final class ASTPrinter: ASTVisitor {
         outputStream.write("\"\(stringLiteral.value)\"")
     }
 
+    public func visit(nullLiteral: NullLiteral) throws {
+        outputStream.write("null")
+    }
+
     public func visit(ifStatement: IfStatement) throws {
         outputStream.write("if ")
         try ifStatement.condition.acceptVisitor(self)

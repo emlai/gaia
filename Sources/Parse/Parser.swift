@@ -222,6 +222,12 @@ public final class Parser {
         return e
     }
 
+    private func parseNullLiteral() throws -> Expression {
+        let e = NullLiteral(at: tokenSourceLocation)
+        _ = try nextToken() // consume 'null'
+        return e
+    }
+
     private func parseParenthesizedExpression() throws -> Expression {
         _ = try nextToken() // consume '('
         let e = try parseExpression()
@@ -264,6 +270,7 @@ public final class Parser {
             case .integerLiteral?: return try parseIntegerLiteral()
             case .floatingPointLiteral?: return try parseFloatingPointLiteral()
             case .stringLiteral?: return try parseStringLiteral()
+            case .keyword(.null)?: return try parseNullLiteral()
             case .keyword(.true)?, .keyword(.false)?: return try parseBooleanLiteral()
             case .keyword(.if)?: return try parseIfExpression()
             case .leftParenthesis?: return try parseParenthesizedExpression()

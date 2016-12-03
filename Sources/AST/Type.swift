@@ -12,6 +12,7 @@ public enum Type: String, Hashable {
     case float64 = "Float64"
     case float = "Float"
     case string = "String"
+    case typeOfNull = "Null"
 
     public var llvmType: LLVM.TypeType {
         switch self {
@@ -24,6 +25,7 @@ public enum Type: String, Hashable {
             case .float32: return LLVM.RealType.float()
             case .float64, .float: return LLVM.RealType.double()
             case .string: return LLVM.PointerType(type: LLVM.IntType.int8(), addressSpace: 0)
+            case .typeOfNull: fatalError("typeOfNull has no LLVM equivalent")
         }
     }
 }

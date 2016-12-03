@@ -88,6 +88,18 @@ public class StringLiteral: Expression {
     }
 }
 
+public class NullLiteral: Expression {
+    public let sourceLocation: SourceLocation
+
+    public init(at sourceLocation: SourceLocation) {
+        self.sourceLocation = sourceLocation
+    }
+
+    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
+        return try visitor.visit(nullLiteral: self)
+    }
+}
+
 public class Variable: Expression {
     public let name: String
     public let sourceLocation: SourceLocation
