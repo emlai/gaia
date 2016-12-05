@@ -3,6 +3,7 @@ import LLVM_C
 import LLVM
 import Parse
 import AST
+import protocol MIR.Statement
 import SemanticAnalysis
 import IRGen
 
@@ -170,20 +171,17 @@ open class Driver {
     public func handleFunctionDefinition(parser: Parser) throws {
         let function = try parser.parseFunctionDefinition()
         _ = try function.acceptVisitor(typeChecker)
-        irGenerator.registerFunctionDefinition(function)
     }
 
     public func handleExternFunctionDeclaration(parser: Parser) throws {
         let prototype = try parser.parseExternFunctionDeclaration()
         _ = try prototype.acceptVisitor(typeChecker)
-        irGenerator.registerExternFunctionDeclaration(prototype)
     }
 
     open func handleToplevelExpression(parser: Parser) throws {
         // Add top-level statements into main function.
         let statement = try parser.parseStatement()
-        _ = try statement.acceptVisitor(typeChecker)
-        try irGenerator.appendToMainFunction(statement)
+        irGenerator.appendToMainFunction(try statement.acceptVisitor(typeChecker) as! Statement)
     }
 
     public func initModule(moduleName: String) {

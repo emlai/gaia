@@ -1,4 +1,4 @@
-extern function putchar(ch)
+extern function putchar(ch: Int)
 
 function foo(x) {
     if x < 48 {

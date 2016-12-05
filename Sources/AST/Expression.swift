@@ -30,9 +30,9 @@ public enum BinaryOperator: String {
     }
 }
 
-public protocol Expression: Statement { }
+public protocol ASTExpression: ASTStatement { }
 
-public class IntegerLiteral: Expression {
+public class ASTIntegerLiteral: ASTExpression {
     public let value: Int64
     public let sourceLocation: SourceLocation
 
@@ -46,7 +46,7 @@ public class IntegerLiteral: Expression {
     }
 }
 
-public class FloatingPointLiteral: Expression {
+public class ASTFloatingPointLiteral: ASTExpression {
     public let value: Float64
     public let sourceLocation: SourceLocation
 
@@ -60,7 +60,7 @@ public class FloatingPointLiteral: Expression {
     }
 }
 
-public class BooleanLiteral: Expression {
+public class ASTBooleanLiteral: ASTExpression {
     public let value: Bool
     public let sourceLocation: SourceLocation
 
@@ -74,7 +74,7 @@ public class BooleanLiteral: Expression {
     }
 }
 
-public class StringLiteral: Expression {
+public class ASTStringLiteral: ASTExpression {
     public let value: String
     public let sourceLocation: SourceLocation
 
@@ -88,7 +88,7 @@ public class StringLiteral: Expression {
     }
 }
 
-public class NullLiteral: Expression {
+public class ASTNullLiteral: ASTExpression {
     public let sourceLocation: SourceLocation
 
     public init(at sourceLocation: SourceLocation) {
@@ -100,7 +100,7 @@ public class NullLiteral: Expression {
     }
 }
 
-public class Variable: Expression {
+public class ASTVariable: ASTExpression {
     public let name: String
     public let sourceLocation: SourceLocation
 
@@ -114,50 +114,14 @@ public class Variable: Expression {
     }
 }
 
-public class UnaryOperation: Expression {
-    public let `operator`: UnaryOperator
-    public let operand: Expression
-    public let sourceLocation: SourceLocation
-    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
-
-    public init(operator: UnaryOperator, operand: Expression, at sourceLocation: SourceLocation) {
-        self.operator = `operator`
-        self.operand = operand
-        self.sourceLocation = sourceLocation
-    }
-
-    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        return try visitor.visit(unaryOperation: self)
-    }
-}
-
-public class BinaryOperation: Expression {
-    public let `operator`: BinaryOperator
-    public let leftOperand: Expression
-    public let rightOperand: Expression
-    public let sourceLocation: SourceLocation /// Location of the operator.
-    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
-
-    public init(operator: BinaryOperator, leftOperand: Expression, rightOperand: Expression,
-                at sourceLocation: SourceLocation) {
-        self.operator = `operator`
-        self.leftOperand = leftOperand
-        self.rightOperand = rightOperand
-        self.sourceLocation = sourceLocation
-    }
-
-    public func acceptVisitor<T: ASTVisitor>(_ visitor: T) throws -> T.VisitResult {
-        return try visitor.visit(binaryOperation: self)
-    }
-}
-
-public class FunctionCall: Expression {
+public class ASTFunctionCall: ASTExpression {
     public let functionName: String
-    public let arguments: [Expression]
+    public let arguments: [ASTExpression]
     public let sourceLocation: SourceLocation
-    public var returnType: Type? // Should be set by TypeChecker during semantic analysis.
+    public var isUnaryOperation: Bool { return UnaryOperator(rawValue: functionName) != nil && arguments.count == 1 }
+    public var isBinaryOperation: Bool { return BinaryOperator(rawValue: functionName) != nil && arguments.count == 2 }
 
-    public init(functionName: String, arguments: [Expression], at sourceLocation: SourceLocation) {
+    public init(functionName: String, arguments: [ASTExpression], at sourceLocation: SourceLocation) {
         self.functionName = functionName
         self.arguments = arguments
         self.sourceLocation = sourceLocation
@@ -168,13 +132,13 @@ public class FunctionCall: Expression {
     }
 }
 
-public class IfExpression: Expression {
-    public let condition: Expression
-    public let then: Expression
-    public let `else`: Expression
+public class ASTIfExpression: ASTExpression {
+    public let condition: ASTExpression
+    public let then: ASTExpression
+    public let `else`: ASTExpression
     public let sourceLocation: SourceLocation
 
-    public init(condition: Expression, then: Expression, else: Expression, at sourceLocation: SourceLocation) {
+    public init(condition: ASTExpression, then: ASTExpression, else: ASTExpression, at sourceLocation: SourceLocation) {
         self.condition = condition
         self.then = then
         self.else = `else`

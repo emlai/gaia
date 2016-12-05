@@ -1,4 +1,5 @@
 import AST
+import MIR
 
 public enum TypeError: SourceCodeError {
     case mismatchingTypes(location: SourceLocation, message: String)
@@ -17,225 +18,283 @@ public enum TypeError: SourceCodeError {
     }
 }
 
+/// Checks the AST for type errors, building the MIR during the process.
 public final class TypeChecker: ASTVisitor {
     private var symbolTable: SymbolTable
     private var arguments: [Type]? // Used to pass function arguments to visitor functions.
     private var returnTypes: [[Type]]
     private var typeCheckedFunctions: [String: Type]
+    private var functionsBeingCurrentlyInstantiated: [FunctionSignature: FunctionPrototype]
+    private var instantiatedFunctions: [FunctionSignature: Function]
 
     public init(allowRedefinitions: Bool) {
         symbolTable = SymbolTable(allowRedefinitions: allowRedefinitions)
         returnTypes = []
         typeCheckedFunctions = [:]
+        functionsBeingCurrentlyInstantiated = [:]
+        instantiatedFunctions = [:]
     }
 
-    public func visit(variable: Variable) throws -> Type? {
+    public func visit(variable: ASTVariable) throws -> MIRNode? {
         guard let type = symbolTable.lookupVariable(name: variable.name) else {
             throw SemanticError.unknownIdentifier(location: variable.sourceLocation,
                                                   message: "unknown variable '\(variable.name)'")
         }
-        return type
+        return Variable(variable.name, type)
     }
 
-    public func visit(unaryOperation: UnaryOperation) throws -> Type? {
-        let operandType = try unaryOperation.operand.acceptVisitor(self)!
-
-        switch unaryOperation.operator {
-            case .not: if operandType == .bool { return .bool }
-            case .plus, .minus: if [.int, .float].contains(operandType) { return operandType }
-        }
-
-        arguments = [operandType]
-        guard let function = try symbolTable.lookupFunction(name: unaryOperation.operator.rawValue,
-                                                            argumentTypes: arguments!) else {
-            throw TypeError.invalidType(location: unaryOperation.operand.sourceLocation,
-                                        message: "invalid operand type `\(operandType.rawValue)` " +
-                                                 "for unary `\(unaryOperation.operator.rawValue)`")
-        }
-
-        unaryOperation.returnType = try function.acceptVisitor(self)
-        return unaryOperation.returnType
+    private func operationAsCall(_ operation: ASTFunctionCall, _ operands: Expression...,
+                                     returnType: Type? = nil) -> FunctionCall {
+        let returnType = returnType ?? operands[0].type
+        let p = FunctionPrototype(name: operation.functionName,
+                                  parameters: operands.map { Parameter(name: "operand", type: $0.type) },
+                                  returnType: returnType, body: nil)
+        return FunctionCall(target: p, arguments: operands, type: returnType)
     }
 
-    public func visit(binaryOperation: BinaryOperation) throws -> Type? {
-        let lhsType = try binaryOperation.leftOperand.acceptVisitor(self)!
-        let rhsType = try binaryOperation.rightOperand.acceptVisitor(self)!
+    private func visit(unaryOperation: ASTFunctionCall) throws -> FunctionCall? {
+        let operand = try unaryOperation.arguments[0].acceptVisitor(self) as! Expression
+        switch UnaryOperator(rawValue: unaryOperation.functionName)! {
+            case .not:
+                if operand.type == .bool { return operationAsCall(unaryOperation, operand) }
+            case .plus, .minus:
+                if [.int, .float].contains(operand.type) { return operationAsCall(unaryOperation, operand) }
+        }
+        return nil
+    }
 
-        switch binaryOperation.operator {
+    private func visit(binaryOperation: ASTFunctionCall) throws -> FunctionCall? {
+        let lhs = try binaryOperation.arguments[0].acceptVisitor(self) as! Expression
+        let rhs = try binaryOperation.arguments[1].acceptVisitor(self) as! Expression
+
+        switch BinaryOperator(rawValue: binaryOperation.functionName)! {
             case .equals, .notEquals, .lessThan, .lessThanOrEqual, .greaterThan, .greaterThanOrEqual:
-                switch (lhsType, rhsType) {
-                    case (.int, .int), (.bool, .bool), (.float, .float): return .bool
+                switch (lhs.type, rhs.type) {
+                    case (.int, .int), (.bool, .bool), (.float, .float):
+                        return operationAsCall(binaryOperation, lhs, rhs, returnType: .bool)
                     case (.float, .int):
-                        if binaryOperation.rightOperand as? IntegerLiteral != nil { return .bool }
+                        if binaryOperation.arguments[1] as? ASTIntegerLiteral != nil {
+                            return operationAsCall(binaryOperation, lhs, rhs, returnType: .bool)
+                        }
                     case (.int, .float):
-                        if binaryOperation.leftOperand as? IntegerLiteral != nil { return .bool }
+                        if binaryOperation.arguments[0] as? ASTIntegerLiteral != nil {
+                            return operationAsCall(binaryOperation, lhs, rhs, returnType: .bool)
+                        }
                     default: break
                 }
             case .plus, .minus, .multiplication, .division:
-                switch (lhsType, rhsType) {
-                    case (.int, .int): return .int
-                    case (.float, .float): return .float
+                switch (lhs.type, rhs.type) {
+                    case (.int, .int): return operationAsCall(binaryOperation, lhs, rhs, returnType: .int)
+                    case (.float, .float): return operationAsCall(binaryOperation, lhs, rhs, returnType: .float)
                     default: break
                 }
         }
-
-        // Handle implicitly defined operators.
-        let actualOperation: BinaryOperation
-        switch binaryOperation.operator {
-            case .notEquals:
-                actualOperation = BinaryOperation(operator: .equals,
-                                                  leftOperand: binaryOperation.leftOperand,
-                                                  rightOperand: binaryOperation.rightOperand,
-                                                  at: binaryOperation.sourceLocation)
-            case .greaterThan:
-                actualOperation = BinaryOperation(operator: .lessThan,
-                                                  leftOperand: binaryOperation.rightOperand,
-                                                  rightOperand: binaryOperation.leftOperand,
-                                                  at: binaryOperation.sourceLocation)
-            case .lessThanOrEqual:
-                actualOperation = BinaryOperation(operator: .lessThan,
-                                                  leftOperand: binaryOperation.rightOperand,
-                                                  rightOperand: binaryOperation.leftOperand,
-                                                  at: binaryOperation.sourceLocation)
-            case .greaterThanOrEqual:
-                actualOperation = BinaryOperation(operator: .lessThan,
-                                                  leftOperand: binaryOperation.leftOperand,
-                                                  rightOperand: binaryOperation.rightOperand,
-                                                  at: binaryOperation.sourceLocation)
-            default:
-                actualOperation = binaryOperation
-        }
-
-        arguments = [lhsType, rhsType]
-        guard let function = try symbolTable.lookupFunction(name: actualOperation.operator.rawValue,
-                                                            argumentTypes: arguments!) else {
-            throw TypeError.invalidType(location: binaryOperation.sourceLocation,
-                                        message: "invalid types `\(lhsType.rawValue)` and " +
-                                                 "`\(rhsType.rawValue)` for binary operation")
-        }
-
-        binaryOperation.returnType = try function.acceptVisitor(self)
-        return binaryOperation.returnType
+        return try handleImplicitlyDefinedOperators(binaryOperation) as! FunctionCall?
     }
 
-    public func visit(functionCall: FunctionCall) throws -> Type? {
-        let argumentTypes = try functionCall.arguments.map { try $0.acceptVisitor(self)! }
+    private func handleImplicitlyDefinedOperators(_ functionCall: ASTFunctionCall) throws -> MIRNode? {
+        // TODO: Clean this up.
+        switch BinaryOperator(rawValue: functionCall.functionName)! {
+            case .notEquals:
+                let equals = ASTFunctionCall(functionName: "==", arguments: functionCall.arguments,
+                                             at: functionCall.sourceLocation)
+                let negation = ASTFunctionCall(functionName: "!", arguments: [equals],
+                                               at: functionCall.sourceLocation)
+                return try visit(functionCall: negation)
+            case .greaterThan:
+                let less = ASTFunctionCall(functionName: "<", arguments: functionCall.arguments.reversed(),
+                                           at: functionCall.sourceLocation)
+                return try visit(functionCall: less)
+            case .lessThanOrEqual:
+                let less = ASTFunctionCall(functionName: "<", arguments: functionCall.arguments.reversed(),
+                                           at: functionCall.sourceLocation)
+                let negation = ASTFunctionCall(functionName: "!", arguments: [less],
+                                               at: functionCall.sourceLocation)
+                return try visit(functionCall: negation)
+            case .greaterThanOrEqual:
+                let less = ASTFunctionCall(functionName: "<", arguments: functionCall.arguments,
+                                           at: functionCall.sourceLocation)
+                let negation = ASTFunctionCall(functionName: "!", arguments: [less],
+                                               at: functionCall.sourceLocation)
+                return try visit(functionCall: negation)
+            default: return nil
+        }
+    }
 
-        if let function = try symbolTable.lookupFunction(name: functionCall.functionName,
-                                                         argumentTypes: argumentTypes) {
-            arguments = argumentTypes
-            let scopeBackup = symbolTable.popScope() // Prevent leaking local variables to other functions.
-            functionCall.returnType = try function.acceptVisitor(self)
-            if let scopeBackup = scopeBackup { symbolTable.pushScope(scopeBackup) }
-            return functionCall.returnType
+    public func visit(functionCall: ASTFunctionCall) throws -> MIRNode? {
+        let arguments = try functionCall.arguments.map { try $0.acceptVisitor(self) as! Expression }
+        let argumentTypes = arguments.map { $0.type }
+
+        if functionCall.isBinaryOperation {
+            if let call = try visit(binaryOperation: functionCall) { return call }
+        } else if functionCall.isUnaryOperation {
+            if let call = try visit(unaryOperation: functionCall) { return call }
         }
 
-        if let prototype = try symbolTable.lookupExternFunction(name: functionCall.functionName,
-                                                                argumentTypes: argumentTypes) {
-            if !argumentsMatch(argumentTypes, prototype) {
-                throw SemanticError.argumentMismatch(message: "arguments don't match, expected " +
-                                                              "\(prototype.parameters.map { $0.type })")
-            }
-            functionCall.returnType = prototype.returnType == nil ? .void : Type(rawValue: prototype.returnType!)
-            return functionCall.returnType
+        if let prototype = try getInstantiatedPrototypeForFunctionCall(name: functionCall.functionName,
+                                                                       argumentTypes: argumentTypes) {
+            return FunctionCall(target: prototype, arguments: arguments,
+                                type: prototype.returnType ?? .void)
         }
 
+        if functionCall.isBinaryOperation {
+            throw SemanticError.noMatchingFunction(location: functionCall.sourceLocation,
+                                                   message: "invalid types `\(argumentTypes[0])` and " +
+                                                            "`\(argumentTypes[1])` for binary operation")
+        } else if functionCall.isUnaryOperation {
+            throw SemanticError.noMatchingFunction(location: functionCall.arguments[0].sourceLocation,
+                                                   message: "invalid operand type `\(argumentTypes[0])` " +
+                                                            "for unary `\(functionCall.functionName)`")
+        }
         let argumentList = "(\(argumentTypes.map { $0.rawValue }.joined(separator: ", ")))"
         throw SemanticError.noMatchingFunction(location: functionCall.sourceLocation,
-                                               message: "no matching function to call with " +
-                                                        "argument types \(argumentList)")
+                                               message: "no matching function `\(functionCall.functionName)` " +
+                                                        "to call with argument types \(argumentList)")
     }
 
-    public func visit(integerLiteral: IntegerLiteral) throws -> Type? {
-        return .int
+    private func getInstantiatedPrototypeForFunctionCall(name: String, argumentTypes: [Type]) throws -> FunctionPrototype? {
+        if let beingInstantiated = functionsBeingCurrentlyInstantiated[FunctionSignature(name, argumentTypes)] {
+            return beingInstantiated
+        }
+
+        if let instantiated = instantiatedFunctions[FunctionSignature(name, argumentTypes)] {
+            return instantiated.prototype
+        }
+
+        if let function = try symbolTable.lookupFunctionTemplateToCall(name: name, argumentTypes: argumentTypes) {
+            self.arguments = argumentTypes
+            let scopeBackup = symbolTable.popScope() // Prevent leaking local variables to other functions.
+            let instantiatedFunction = try instantiateFunction(function)
+            instantiatedFunctions[FunctionSignature(name, argumentTypes)] = instantiatedFunction
+            if let scopeBackup = scopeBackup { symbolTable.pushScope(scopeBackup) }
+            return instantiatedFunction.prototype
+        }
+
+        if let prototype = try symbolTable.lookupExternFunction(name: name, argumentTypes: argumentTypes) {
+            return prototype
+        }
+
+        return nil
     }
 
-    public func visit(floatingPointLiteral: FloatingPointLiteral) throws -> Type? {
-        return .float
+    public func visit(integerLiteral: ASTIntegerLiteral) throws -> MIRNode? {
+        return IntegerLiteral(value: integerLiteral.value)
     }
 
-    public func visit(booleanLiteral: BooleanLiteral) throws -> Type? {
-        return .bool
+    public func visit(floatingPointLiteral: ASTFloatingPointLiteral) throws -> MIRNode? {
+        return FloatingPointLiteral(value: floatingPointLiteral.value)
     }
 
-    public func visit(stringLiteral: StringLiteral) throws -> Type? {
-        return .string
+    public func visit(booleanLiteral: ASTBooleanLiteral) throws -> MIRNode? {
+        return BooleanLiteral(value: booleanLiteral.value)
     }
 
-    public func visit(nullLiteral: NullLiteral) throws -> Type? {
-        return .typeOfNull
+    public func visit(stringLiteral: ASTStringLiteral) throws -> MIRNode? {
+        return StringLiteral(value: stringLiteral.value)
     }
 
-    public func visit(ifExpression: IfExpression) throws -> Type? {
-        if try ifExpression.condition.acceptVisitor(self) != .bool {
+    public func visit(nullLiteral: ASTNullLiteral) throws -> MIRNode? {
+        return NullLiteral()
+    }
+
+    public func visit(ifExpression: ASTIfExpression) throws -> MIRNode? {
+        let condition = try ifExpression.condition.acceptVisitor(self) as! Expression
+        if condition.type != .bool {
             throw TypeError.invalidType(location: ifExpression.condition.sourceLocation,
                                         message: "'if' condition requires a Bool expression")
         }
-        let thenType = try ifExpression.then.acceptVisitor(self)
-        let elseType = try ifExpression.else.acceptVisitor(self)
-        if thenType != elseType {
+        let thenNode = try ifExpression.then.acceptVisitor(self) as! Expression
+        let elseNode = try ifExpression.else.acceptVisitor(self) as! Expression
+        if thenNode.type != elseNode.type {
             throw TypeError.mismatchingTypes(location: ifExpression.sourceLocation,
                                              message: "'then' and 'else' branches must have same type")
         }
-        return elseType
+        return IfExpression(condition: condition, then: thenNode, else: elseNode, type: elseNode.type)
     }
 
-    public func visit(ifStatement: IfStatement) throws -> Type? {
-        if try ifStatement.condition.acceptVisitor(self) != .bool {
+    public func visit(ifStatement: ASTIfStatement) throws -> MIRNode? {
+        let condition = try ifStatement.condition.acceptVisitor(self) as! Expression
+        if condition.type != .bool {
             throw TypeError.invalidType(location: ifStatement.condition.sourceLocation,
                                         message: "'if' condition requires a Bool expression")
         }
-        for statement in ifStatement.then { _ = try statement.acceptVisitor(self) }
-        for statement in ifStatement.else { _ = try statement.acceptVisitor(self) }
-        return nil
+        let thenNodes = try ifStatement.then.map { try $0.acceptVisitor(self) as! Statement }
+        let elseNodes = try ifStatement.else.map { try $0.acceptVisitor(self) as! Statement }
+        return IfStatement(condition: condition, then: thenNodes, else: elseNodes)
     }
 
-    public func visit(function: Function) throws -> Type? {
-        if let argumentTypes = arguments {
-            if let returnType = typeCheckedFunctions[function.prototype.name] { return returnType }
-            if let declaredReturnType = function.prototype.returnType {
-                typeCheckedFunctions[function.prototype.name] = Type(rawValue: declaredReturnType)! // TODO: error handling
-            }
+    public func visit(function: ASTFunction) throws -> MIRNode? {
+        try symbolTable.registerFunction(function)
+        return try function.prototype.acceptVisitor(self)
+    }
 
-            // Type-checking the function.
-            symbolTable.pushScope()
-            assert(argumentTypes.count == function.prototype.parameters.count)
-            for (argumentType, parameter) in zip(argumentTypes, function.prototype.parameters) {
-                try symbolTable.registerVariable(name: parameter.name, type: argumentType,
-                                                 at: parameter.sourceLocation)
+    private func instantiateFunction(_ function: ASTFunction) throws -> Function {
+        let argumentTypes = arguments!
+
+        var prototype: FunctionPrototype?
+        if let declaredReturnType = function.prototype.returnType {
+            let parameters = zip(function.prototype.parameters, argumentTypes).map {
+                Parameter(name: $0.name, type: $1)
             }
-            self.arguments = nil
-            returnTypes.append([])
-            for statement in function.body {
-                _ = try statement.acceptVisitor(self)
-            }
-            symbolTable.popScope()
-            return returnTypes.removeLast().first ?? .void
+            prototype = FunctionPrototype(name: function.prototype.name, parameters: parameters,
+                                          returnType: Type(rawValue: declaredReturnType), body: nil)
+            functionsBeingCurrentlyInstantiated[FunctionSignature(function.prototype.name, argumentTypes)] = prototype
         } else {
-            try symbolTable.registerFunction(function)
-            return nil
+            prototype = nil
         }
+
+        // Type-checking the function.
+        symbolTable.pushScope()
+        assert(argumentTypes.count == function.prototype.parameters.count)
+        for (argumentType, parameter) in zip(argumentTypes, function.prototype.parameters) {
+            try symbolTable.registerVariable(name: parameter.name, type: argumentType,
+                                             at: parameter.sourceLocation)
+        }
+
+        self.arguments = nil
+        returnTypes.append([])
+        let body = try function.body.map { try $0.acceptVisitor(self) as! Statement }
+        symbolTable.popScope()
+        let returnType = returnTypes.removeLast().first ?? .void
+
+        if prototype == nil {
+            let parameters = zip(function.prototype.parameters, argumentTypes).map {
+                Parameter(name: $0.name, type: $1)
+            }
+            prototype = FunctionPrototype(name: function.prototype.name, parameters: parameters,
+                                          returnType: returnType, body: nil)
+        }
+        let instantiation = Function(prototype: prototype!, body: body, type: returnType)
+        prototype!.body = instantiation
+        functionsBeingCurrentlyInstantiated[FunctionSignature(function.prototype.name, argumentTypes)] = nil
+        return instantiation
     }
 
-    public func visit(prototype: FunctionPrototype) throws -> Type? {
-        try symbolTable.registerExternFunction(prototype)
+    public func visit(prototype: ASTPrototype) throws -> MIRNode? {
+        if prototype.isExtern { try symbolTable.registerExternFunction(prototype) }
         return nil
     }
 
-    public func visit(returnStatement: ReturnStatement) throws -> Type? {
-        let returnType = try returnStatement.value?.acceptVisitor(self)
-        if !returnTypes.isEmpty { returnTypes[returnTypes.endIndex - 1].append(returnType!) }
-        return returnType
+    public func visit(returnStatement: ASTReturnStatement) throws -> MIRNode? {
+        let returnValue: Expression?
+        if let returnExpression = returnStatement.value {
+            returnValue = (try returnExpression.acceptVisitor(self) as! Expression)
+        } else {
+            returnValue = nil
+        }
+        let returnType = returnValue?.type ?? .void
+        if !returnTypes.isEmpty { returnTypes[returnTypes.endIndex - 1].append(returnType) }
+        return ReturnStatement(value: returnValue)
     }
 
-    public func visit(variableDefinition: VariableDefinition) throws -> Type? {
-        let type = try variableDefinition.value.acceptVisitor(self)!
-        try symbolTable.registerVariable(name: variableDefinition.name, type: type,
+    public func visit(variableDefinition: ASTVariableDefinition) throws -> MIRNode? {
+        let valueNode = try variableDefinition.value.acceptVisitor(self) as! Expression
+        try symbolTable.registerVariable(name: variableDefinition.name, type: valueNode.type,
                                          at: variableDefinition.sourceLocation)
-        return nil
+        return VariableDefinition(name: variableDefinition.name, value: valueNode)
     }
 
-    private func argumentsMatch(_ argumentTypes: [Type], _ prototype: FunctionPrototype) -> Bool {
+    private func argumentsMatch(_ argumentTypes: [Type], _ prototype: ASTPrototype) -> Bool {
         let parameterTypes = prototype.parameters.map { $0.type == nil ? nil : Type(rawValue: $0.type!) }
         if parameterTypes.count != argumentTypes.count { return false }
         for (parameterType, argumentType) in zip(parameterTypes, argumentTypes) {

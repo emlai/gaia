@@ -84,7 +84,7 @@ public final class Parser {
         if self.token == token { _ = try nextToken() }
     }
 
-    func parseFunctionPrototype() throws -> FunctionPrototype {
+    func parseFunctionPrototype(isExtern: Bool = false) throws -> ASTPrototype {
         _ = try nextToken() // consume 'function'
 
         enum NameOrOperator {
@@ -120,16 +120,16 @@ public final class Parser {
 
         switch nameOrOperator {
             case .name(let name):
-                return FunctionPrototype(name: name, parameters: parameters,
-                                         returnType: returnType, at: nameLocation)
+                return ASTPrototype(name: name, parameters: parameters, returnType: returnType,
+                                    isExtern: isExtern, at: nameLocation)
             case .op(let op):
                 switch parameters.count {
                     case 2:
-                        return BinaryOperatorPrototype(operator: op, lhs: parameters[0], rhs: parameters[1],
-                                                       returnType: returnType, at: nameLocation)
+                        return ASTBinaryOperatorPrototype(operator: op, lhs: parameters[0], rhs: parameters[1],
+                                                          returnType: returnType, at: nameLocation)
                     case 1:
-                        return UnaryOperatorPrototype(operator: UnaryOperator(from: op)!, operand: parameters[0],
-                                                      returnType: returnType, at: nameLocation)
+                        return ASTUnaryOperatorPrototype(operator: UnaryOperator(from: op)!, operand: parameters[0],
+                                                         returnType: returnType, at: nameLocation)
                     default: throw ParseError.invalidNumberOfParameters("invalid number of parameters " +
                                                                         "for operator `\(op.rawValue)`",
                                                                         location: nameLocation)
@@ -137,8 +137,8 @@ public final class Parser {
         }
     }
 
-    private func parseParameterList() throws -> [Parameter] {
-        var parameters = [Parameter]()
+    private func parseParameterList() throws -> [ASTParameter] {
+        var parameters = [ASTParameter]()
         try expectToken(.leftParenthesis, "expected '(' in prototype")
         while try nextToken() != .rightParenthesis {
             parameters.append(try parseParameter())
@@ -148,7 +148,7 @@ public final class Parser {
         return parameters
     }
 
-    private func parseParameter() throws -> Parameter {
+    private func parseParameter() throws -> ASTParameter {
         guard case .identifier(let parameterName)? = token else { preconditionFailure() }
         let parameterNameLocation = tokenSourceLocation!
 
@@ -157,20 +157,20 @@ public final class Parser {
                 switch try nextToken() {
                     case .identifier(let typeName):
                         _ = try nextToken() // consume parameter type
-                        return Parameter(name: parameterName, type: typeName, at: parameterNameLocation)
+                        return ASTParameter(name: parameterName, type: typeName, at: parameterNameLocation)
                     default:
                         throw ParseError.unexpectedToken("expected parameter type after `:`")
                 }
             case .comma, .rightParenthesis:
-                return Parameter(name: parameterName, type: nil, at: parameterNameLocation)
+                return ASTParameter(name: parameterName, type: nil, at: parameterNameLocation)
             default:
                 throw ParseError.unexpectedToken("unexpected \(token!)")
         }
     }
 
-    public func parseFunctionDefinition() throws -> Function {
+    public func parseFunctionDefinition() throws -> ASTFunction {
         let prototype = try parseFunctionPrototype()
-        var body = [Statement]()
+        var body = [ASTStatement]()
 
         try skipOptionalToken(.newline)
         try skipExpectedToken(.leftBrace)
@@ -182,53 +182,53 @@ public final class Parser {
         }
         try skipExpectedToken(.rightBrace)
 
-        return Function(prototype: prototype, body: body)
+        return ASTFunction(prototype: prototype, body: body)
     }
 
-    public func parseExternFunctionDeclaration() throws -> FunctionPrototype {
+    public func parseExternFunctionDeclaration() throws -> ASTPrototype {
         _ = try nextToken() // consume 'extern'
-        return try parseFunctionPrototype()
+        return try parseFunctionPrototype(isExtern: true)
     }
 
-    private func parseIntegerLiteral() throws -> Expression {
+    private func parseIntegerLiteral() throws -> ASTExpression {
         guard case .integerLiteral(let value)? = token else { fatalError() }
-        let e = IntegerLiteral(value: value, at: tokenSourceLocation)
+        let e = ASTIntegerLiteral(value: value, at: tokenSourceLocation)
         _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseBooleanLiteral() throws -> Expression {
-        let e: Expression
+    private func parseBooleanLiteral() throws -> ASTExpression {
+        let e: ASTExpression
         switch token {
-            case .keyword(.true)?: e = BooleanLiteral(value: true, at: tokenSourceLocation)
-            case .keyword(.false)?: e = BooleanLiteral(value: false, at: tokenSourceLocation)
+            case .keyword(.true)?: e = ASTBooleanLiteral(value: true, at: tokenSourceLocation)
+            case .keyword(.false)?: e = ASTBooleanLiteral(value: false, at: tokenSourceLocation)
             default: preconditionFailure()
         }
         _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseFloatingPointLiteral() throws -> Expression {
+    private func parseFloatingPointLiteral() throws -> ASTExpression {
         guard case .floatingPointLiteral(let value)? = token else { fatalError() }
-        let e = FloatingPointLiteral(value: value, at: tokenSourceLocation)
+        let e = ASTFloatingPointLiteral(value: value, at: tokenSourceLocation)
         _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseStringLiteral() throws -> Expression {
+    private func parseStringLiteral() throws -> ASTExpression {
         guard case .stringLiteral(let value)? = token else { fatalError() }
-        let e = StringLiteral(value: value, at: tokenSourceLocation)
+        let e = ASTStringLiteral(value: value, at: tokenSourceLocation)
         _ = try nextToken() // consume the literal
         return e
     }
 
-    private func parseNullLiteral() throws -> Expression {
-        let e = NullLiteral(at: tokenSourceLocation)
+    private func parseNullLiteral() throws -> ASTExpression {
+        let e = ASTNullLiteral(at: tokenSourceLocation)
         _ = try nextToken() // consume 'null'
         return e
     }
 
-    private func parseParenthesizedExpression() throws -> Expression {
+    private func parseParenthesizedExpression() throws -> ASTExpression {
         _ = try nextToken() // consume '('
         let e = try parseExpression()
         try expectToken(.rightParenthesis)
@@ -236,7 +236,7 @@ public final class Parser {
         return e
     }
 
-    private func parseIdentifier() throws -> Expression {
+    private func parseIdentifier() throws -> ASTExpression {
         guard case .identifier(let identifier)? = token else {
             fatalError()
         }
@@ -245,11 +245,11 @@ public final class Parser {
 
         if try nextToken() != .leftParenthesis {
             // It's a variable.
-            return Variable(name: identifier, at: identifierSourceLocation)
+            return ASTVariable(name: identifier, at: identifierSourceLocation)
         }
 
         // It's a function call.
-        var arguments = [Expression]()
+        var arguments = [ASTExpression]()
 
         if try nextToken() != .rightParenthesis {
             while true {
@@ -261,10 +261,10 @@ public final class Parser {
             }
         }
         _ = try nextToken() // consume ')'
-        return FunctionCall(functionName: identifier, arguments: arguments, at: identifierSourceLocation)
+        return ASTFunctionCall(functionName: identifier, arguments: arguments, at: identifierSourceLocation)
     }
 
-    private func parsePrimaryExpression() throws -> Expression {
+    private func parsePrimaryExpression() throws -> ASTExpression {
         switch token {
             case .identifier?: return try parseIdentifier()
             case .integerLiteral?: return try parseIntegerLiteral()
@@ -278,11 +278,11 @@ public final class Parser {
         }
     }
 
-    public func parseExpression() throws -> Expression {
+    public func parseExpression() throws -> ASTExpression {
         return try parseBinOpRHS(precedence: 0, lhs: try parseUnaryExpression())
     }
 
-    private func parseUnaryExpression() throws -> Expression {
+    private func parseUnaryExpression() throws -> ASTExpression {
         if token.isPrimary || token == .leftParenthesis || token == .comma {
             return try parsePrimaryExpression()
         }
@@ -296,11 +296,11 @@ public final class Parser {
         }
         let operatorLocation = tokenSourceLocation!
         _ = try nextToken()
-        return UnaryOperation(operator: unaryOperator, operand: try parseUnaryExpression(),
-                              at: operatorLocation)
+        return ASTFunctionCall(functionName: unaryOperator.rawValue,
+                               arguments: [try parseUnaryExpression()], at: operatorLocation)
     }
 
-    private func parseBinOpRHS(precedence: Int, lhs: Expression) throws -> Expression {
+    private func parseBinOpRHS(precedence: Int, lhs: ASTExpression) throws -> ASTExpression {
         var lhs = lhs
 
         while true {
@@ -328,20 +328,20 @@ public final class Parser {
             }
 
             // Merge lhs and rhs.
-            lhs = BinaryOperation(operator: binaryOperator, leftOperand: lhs,
-                                  rightOperand: rhs, at: operatorLocation)
+            lhs = ASTFunctionCall(functionName: binaryOperator.rawValue,
+                                  arguments: [lhs, rhs], at: operatorLocation)
         }
     }
 
-    private func parseIfStatement() throws -> Statement {
+    private func parseIfStatement() throws -> ASTStatement {
         let ifLocation = tokenSourceLocation!
         _ = try nextToken() // consume 'if'
         let condition = try parseExpression()
         try skipOptionalToken(.newline)
         try skipExpectedToken(.leftBrace, "expected `then` or `{` after `if` condition")
         try skipOptionalToken(.newline)
-        var thenBranch = [Statement]()
-        var elseBranch = [Statement]()
+        var thenBranch = [ASTStatement]()
+        var elseBranch = [ASTStatement]()
 
         while token != .rightBrace {
             thenBranch.append(try parseStatement())
@@ -362,10 +362,10 @@ public final class Parser {
         try skipExpectedToken(.rightBrace)
         try expectToken(.newline)
 
-        return IfStatement(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
+        return ASTIfStatement(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
     }
 
-    private func parseIfExpression() throws -> Expression {
+    private func parseIfExpression() throws -> ASTExpression {
         let ifLocation = tokenSourceLocation!
         _ = try nextToken() // consume 'if'
         let condition = try parseExpression()
@@ -377,10 +377,10 @@ public final class Parser {
         _ = try nextToken() // consume 'else'
         let elseBranch = try parseExpression()
 
-        return IfExpression(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
+        return ASTIfExpression(condition: condition, then: thenBranch, else: elseBranch, at: ifLocation)
     }
 
-    public func parseStatement() throws -> Statement {
+    public func parseStatement() throws -> ASTStatement {
         switch token {
             case .keyword(.return)?: return try parseReturnStatement()
 
@@ -391,7 +391,7 @@ public final class Parser {
                 let nextLocation = tokenSourceLocation!
                 if next == .assignmentOperator {
                     _ = try nextToken() // consume `=`
-                    return VariableDefinition(name: name, value: try parseExpression(), at: identifierLocation)
+                    return ASTVariableDefinition(name: name, value: try parseExpression(), at: identifierLocation)
                 }
                 tokens = [(nextLocation, next), (identifierLocation, .identifier(name))]
 
@@ -413,9 +413,9 @@ public final class Parser {
         return try parseExpression()
     }
 
-    private func parseReturnStatement() throws -> ReturnStatement {
+    private func parseReturnStatement() throws -> ASTReturnStatement {
         let returnLocation = tokenSourceLocation!
         _ = try nextToken() // consume 'return'
-        return ReturnStatement(value: try parseExpression(), at: returnLocation)
+        return ASTReturnStatement(value: try parseExpression(), at: returnLocation)
     }
 }

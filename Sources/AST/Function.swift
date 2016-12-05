@@ -1,9 +1,9 @@
-public final class Function: ASTNode {
-    public let prototype: FunctionPrototype
-    public let body: [Statement]
+public final class ASTFunction: ASTNode {
+    public let prototype: ASTPrototype
+    public let body: [ASTStatement]
     public var sourceLocation: SourceLocation { return prototype.sourceLocation }
 
-    public init(prototype: FunctionPrototype, body: [Statement]) {
+    public init(prototype: ASTPrototype, body: [ASTStatement]) {
         self.prototype = prototype
         self.body = body
     }
@@ -13,17 +13,19 @@ public final class Function: ASTNode {
     }
 }
 
-public class FunctionPrototype: ASTNode {
+public class ASTPrototype: ASTNode {
     public let name: String
-    public let parameters: [Parameter]
+    public let parameters: [ASTParameter]
     public let returnType: String?
+    public let isExtern: Bool
     public let sourceLocation: SourceLocation
 
-    public init(name: String, parameters: [Parameter], returnType: String?,
+    public init(name: String, parameters: [ASTParameter], returnType: String?, isExtern: Bool,
                 at sourceLocation: SourceLocation) {
         self.name = name
         self.parameters = parameters
         self.returnType = returnType
+        self.isExtern = isExtern
         self.sourceLocation = sourceLocation
     }
 
@@ -32,29 +34,29 @@ public class FunctionPrototype: ASTNode {
     }
 }
 
-public final class BinaryOperatorPrototype: FunctionPrototype {
+public final class ASTBinaryOperatorPrototype: ASTPrototype {
     public let `operator`: BinaryOperator
 
-    public init(operator: BinaryOperator, lhs: Parameter, rhs: Parameter,
+    public init(operator: BinaryOperator, lhs: ASTParameter, rhs: ASTParameter,
                 returnType: String?, at sourceLocation: SourceLocation) {
         self.operator = `operator`
         super.init(name: self.operator.rawValue, parameters: [lhs, rhs],
-                   returnType: returnType, at: sourceLocation)
+                   returnType: returnType, isExtern: false, at: sourceLocation)
     }
 }
 
-public final class UnaryOperatorPrototype: FunctionPrototype {
+public final class ASTUnaryOperatorPrototype: ASTPrototype {
     public let `operator`: UnaryOperator
 
-    public init(operator: UnaryOperator, operand: Parameter,
+    public init(operator: UnaryOperator, operand: ASTParameter,
                 returnType: String?, at sourceLocation: SourceLocation) {
         self.operator = `operator`
         super.init(name: self.operator.rawValue, parameters: [operand],
-                   returnType: returnType, at: sourceLocation)
+                   returnType: returnType, isExtern: false, at: sourceLocation)
     }
 }
 
-public final class Parameter {
+public final class ASTParameter {
     public let name: String
     public let type: String?
     public let sourceLocation: SourceLocation

@@ -1,6 +1,6 @@
 import LLVM
 
-public enum Type: String, Hashable {
+public enum Type: String, Hashable, CustomStringConvertible {
     case void = "Void"
     case int8 = "Int8"
     case int16 = "Int16"
@@ -28,4 +28,6 @@ public enum Type: String, Hashable {
             case .typeOfNull: fatalError("typeOfNull has no LLVM equivalent")
         }
     }
+
+    public var description: String { return rawValue }
 }

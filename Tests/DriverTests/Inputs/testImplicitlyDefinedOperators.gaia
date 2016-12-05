@@ -1,4 +1,4 @@
-extern function strcmp(a, b) -> Int
+extern function strcmp(a: String, b: String) -> Int
 
 function ==(a, b) {
     return strcmp(a, b) == 0

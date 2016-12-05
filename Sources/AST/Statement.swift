@@ -1,12 +1,12 @@
-public protocol Statement: ASTNode { }
+public protocol ASTStatement: ASTNode { }
 
-public class IfStatement: Statement {
-    public let condition: Expression
-    public let then: [Statement]
-    public let `else`: [Statement]
+public class ASTIfStatement: ASTStatement {
+    public let condition: ASTExpression
+    public let then: [ASTStatement]
+    public let `else`: [ASTStatement]
     public let sourceLocation: SourceLocation
 
-    public init(condition: Expression, then: [Statement], else: [Statement], at sourceLocation: SourceLocation) {
+    public init(condition: ASTExpression, then: [ASTStatement], else: [ASTStatement], at sourceLocation: SourceLocation) {
         self.condition = condition
         self.then = then
         self.else = `else`
@@ -18,11 +18,11 @@ public class IfStatement: Statement {
     }
 }
 
-public class ReturnStatement: Statement {
-    public let value: Expression?
+public class ASTReturnStatement: ASTStatement {
+    public let value: ASTExpression?
     public let sourceLocation: SourceLocation
 
-    public init(value: Expression, at sourceLocation: SourceLocation) {
+    public init(value: ASTExpression, at sourceLocation: SourceLocation) {
         self.value = value
         self.sourceLocation = sourceLocation
     }
@@ -32,12 +32,12 @@ public class ReturnStatement: Statement {
     }
 }
 
-public class VariableDefinition: Statement {
+public class ASTVariableDefinition: ASTStatement {
     public let name: String
-    public let value: Expression
+    public let value: ASTExpression
     public let sourceLocation: SourceLocation
 
-    public init(name: String, value: Expression, at sourceLocation: SourceLocation) {
+    public init(name: String, value: ASTExpression, at sourceLocation: SourceLocation) {
         self.name = name
         self.value = value
         self.sourceLocation = sourceLocation

@@ -102,16 +102,19 @@ class BasicREPLTests: XCTestCase {
         var stdoutBuffer = ContiguousArray<CChar>(repeating: 0, count: 256)
         stdoutBuffer.withUnsafeMutableBufferPointer {
             setbuf(stdout, $0.baseAddress)
-            XCTAssertEqual(runREPL("extern function putchar(ch)\nputchar(64)\nputchar(65)\n"), "\n\n")
+            XCTAssertEqual(runREPL("extern function putchar(ch: Int)\nputchar(64)\nputchar(65)\n"), "\n\n")
             XCTAssertEqual(String(cString: $0.baseAddress!), "@A")
             setbuf(stdout, nil)
         }
     }
 
     func testArgumentMismatchError() {
-        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo(1)\n"), "no matching function to call with argument types (Int)\n")
-        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo()\n"), "no matching function to call with argument types ()\n")
-        XCTAssertEqual(runREPL("function answer() { return 42 }\nanswer(false)\n"), "no matching function to call with argument types (Bool)\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo(1)\n"),
+                       "no matching function `foo` to call with argument types (Int)\n")
+        XCTAssertEqual(runREPL("function foo(a,b) { return a-b }\nfoo()\n"),
+                       "no matching function `foo` to call with argument types ()\n")
+        XCTAssertEqual(runREPL("function answer() { return 42 }\nanswer(false)\n"),
+                       "no matching function `answer` to call with argument types (Bool)\n")
     }
 
     func testVariableDefinition() {

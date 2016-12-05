@@ -52,7 +52,7 @@ class DriverCompileTests: XCTestCase {
     func testInvalidTypesInArithmeticOperation() throws {
         let result = try compileAndExecute(file: "testInvalidTypesInArithmeticOperation")
         XCTAssertEqual(result.compilerOutput,
-                       "testInvalidTypesInArithmeticOperation.gaia:2:3: " +
+                       "testInvalidTypesInArithmeticOperation.gaia:1:3: " +
                        "error: invalid types `Int` and `Float` for binary operation\n" +
                        "5 + 5.0\n" +
                        "  ^\n")
@@ -70,19 +70,19 @@ class DriverCompileTests: XCTestCase {
     func testArgumentMismatchError() throws {
         let result = try compileAndExecute(file: "testArgumentMismatchError")
         XCTAssertEqual(result.compilerOutput,
-                       "testArgumentMismatchError.gaia:5:1: error: no matching function to call with argument types (Bool, Int)\n" +
+                       "testArgumentMismatchError.gaia:5:1: error: no matching function `foo` to call with argument types (Bool, Int)\n" +
                        "foo(false, 1)\n" +
                        "^\n")
 
         let result2 = try compileAndExecute(file: "testArgumentMismatchError2")
         XCTAssertEqual(result2.compilerOutput,
-                       "testArgumentMismatchError2.gaia:5:1: error: no matching function to call with argument types (Int)\n" +
+                       "testArgumentMismatchError2.gaia:5:1: error: no matching function `foo` to call with argument types (Int)\n" +
                        "foo(0)\n" +
                        "^\n")
 
         let result3 = try compileAndExecute(file: "testArgumentMismatchError3")
         XCTAssertEqual(result3.compilerOutput,
-                       "testArgumentMismatchError3.gaia:5:1: error: no matching function to call with argument types (String)\n" +
+                       "testArgumentMismatchError3.gaia:5:1: error: no matching function `foo` to call with argument types (String)\n" +
                        "foo(\"bar\")\n" +
                        "^\n")
     }
@@ -189,7 +189,7 @@ class DriverCompileTests: XCTestCase {
     func testNullArgument() throws {
         let result = try compileAndExecute(file: "testNullArgument")
         XCTAssertEqual(result.compilerOutput,
-                       "testNullArgument.gaia:1:1: error: no matching function to call with argument types (Null)\n" +
+                       "testNullArgument.gaia:1:1: error: no matching function `print` to call with argument types (Null)\n" +
                        "print(null)\n" +
                        "^\n")
     }

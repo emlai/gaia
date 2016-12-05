@@ -1,9 +1,10 @@
 import AST
+import MIR
 
 struct SymbolTable {
     struct Scope {
         fileprivate var variableSymbolTable = [String: Type]()
-        fileprivate var functionSymbolTable = [String: [Function]]()
+        fileprivate var functionSymbolTable = [String: [ASTFunction]]()
         fileprivate var externFunctionSymbolTable = [String: [FunctionPrototype]]()
     }
     private var scopes: [Scope] // scopes[0] == global scope
@@ -39,7 +40,7 @@ struct SymbolTable {
         return nil
     }
 
-    func lookupFunction(name: String, argumentTypes: [Type]) throws -> Function? {
+    func lookupFunctionTemplateToCall(name: String, argumentTypes: [Type]) throws -> ASTFunction? {
         for scope in scopes.reversed() {
             guard var candidates = scope.functionSymbolTable[name] else { continue }
             candidates = candidates.filter{ $0.prototype.parameters.count == argumentTypes.count }
@@ -65,7 +66,7 @@ struct SymbolTable {
             if argumentTypes.count == 0 { return candidates.first }
 
             for candidate in candidates {
-                let parameterTypes = candidate.parameters.map { $0.type == nil ? nil : Type(rawValue: $0.type!) }
+                let parameterTypes = candidate.parameters.map { $0.type }
 
                 if parameterTypes.count != argumentTypes.count {
                     throw SemanticError.argumentMismatch(message: "wrong number of arguments, " +
@@ -73,7 +74,7 @@ struct SymbolTable {
                 }
 
                 for (parameterType, argumentType) in zip(parameterTypes, argumentTypes) {
-                    if parameterType == nil || parameterType == argumentType {
+                    if parameterType == argumentType {
                         return candidate
                     }
                 }
@@ -90,23 +91,39 @@ struct SymbolTable {
         currentScope.variableSymbolTable[name] = type
     }
 
-    mutating func registerFunction(_ function: Function) throws {
+    mutating func registerFunction(_ function: ASTFunction) throws {
         if currentScope.functionSymbolTable[function.prototype.name] != nil && !allowRedefinitions {
             throw SemanticError.redefinition(location: function.sourceLocation,
                                              message: "redefinition of `\(function.prototype.name)`")
         }
         var array = currentScope.functionSymbolTable[function.prototype.name] ?? []
-        array.append(function)
+        array.insert(function, at: 0)
         currentScope.functionSymbolTable[function.prototype.name] = array
     }
 
-    mutating func registerExternFunction(_ prototype: FunctionPrototype) throws {
+    mutating func registerExternFunction(_ prototype: ASTPrototype) throws {
+        assert(prototype.isExtern)
+
         if currentScope.externFunctionSymbolTable[prototype.name] != nil && !allowRedefinitions {
             throw SemanticError.redefinition(location: prototype.sourceLocation,
                                              message: "redefinition of `\(prototype.name)`")
         }
         var array = currentScope.externFunctionSymbolTable[prototype.name] ?? []
-        array.append(prototype)
+        let declaredParameters = try prototype.parameters.map { (parameter: ASTParameter) -> Parameter in
+            guard let parameterTypeName = parameter.type else {
+                throw SemanticError.missingTypeAnnotation(location: parameter.sourceLocation,
+                                                          message: "extern declarations require parameter types")
+            }
+            guard let parameterType = Type(rawValue: parameterTypeName) else {
+                throw SemanticError.unknownIdentifier(location: parameter.sourceLocation,
+                                                      message: "unknown type \(parameterTypeName)")
+            }
+            return Parameter(name: parameter.name, type: parameterType)
+        }
+
+        let declaredReturnType = prototype.returnType == nil ? nil : Type(rawValue: prototype.returnType!)!
+        array.append(FunctionPrototype(name: prototype.name, parameters: declaredParameters,
+                                       returnType: declaredReturnType, body: nil))
         currentScope.externFunctionSymbolTable[prototype.name] = array
     }
 }

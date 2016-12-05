@@ -5,21 +5,19 @@ public protocol ASTNode {
 
 public protocol ASTVisitor {
     associatedtype VisitResult
-    func visit(variable: Variable) throws -> VisitResult
-    func visit(unaryOperation: UnaryOperation) throws -> VisitResult
-    func visit(binaryOperation: BinaryOperation) throws -> VisitResult
-    func visit(functionCall: FunctionCall) throws -> VisitResult
-    func visit(integerLiteral: IntegerLiteral) throws -> VisitResult
-    func visit(floatingPointLiteral: FloatingPointLiteral) throws -> VisitResult
-    func visit(booleanLiteral: BooleanLiteral) throws -> VisitResult
-    func visit(stringLiteral: StringLiteral) throws -> VisitResult
-    func visit(nullLiteral: NullLiteral) throws -> VisitResult
-    func visit(ifExpression: IfExpression) throws -> VisitResult
-    func visit(ifStatement: IfStatement) throws -> VisitResult
-    func visit(function: Function) throws -> VisitResult
-    func visit(prototype: FunctionPrototype) throws -> VisitResult
-    func visit(returnStatement: ReturnStatement) throws -> VisitResult
-    func visit(variableDefinition: VariableDefinition) throws -> VisitResult
+    func visit(variable: ASTVariable) throws -> VisitResult
+    func visit(functionCall: ASTFunctionCall) throws -> VisitResult
+    func visit(integerLiteral: ASTIntegerLiteral) throws -> VisitResult
+    func visit(floatingPointLiteral: ASTFloatingPointLiteral) throws -> VisitResult
+    func visit(booleanLiteral: ASTBooleanLiteral) throws -> VisitResult
+    func visit(stringLiteral: ASTStringLiteral) throws -> VisitResult
+    func visit(nullLiteral: ASTNullLiteral) throws -> VisitResult
+    func visit(ifExpression: ASTIfExpression) throws -> VisitResult
+    func visit(ifStatement: ASTIfStatement) throws -> VisitResult
+    func visit(function: ASTFunction) throws -> VisitResult
+    func visit(prototype: ASTPrototype) throws -> VisitResult
+    func visit(returnStatement: ASTReturnStatement) throws -> VisitResult
+    func visit(variableDefinition: ASTVariableDefinition) throws -> VisitResult
 }
 
 public struct SourceLocation: CustomStringConvertible {

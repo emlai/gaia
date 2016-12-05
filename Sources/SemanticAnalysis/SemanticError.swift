@@ -5,11 +5,12 @@ public enum SemanticError: SourceCodeError {
     case argumentMismatch(message: String)
     case redefinition(location: SourceLocation, message: String)
     case noMatchingFunction(location: SourceLocation, message: String)
+    case missingTypeAnnotation(location: SourceLocation, message: String)
 
     public var location: SourceLocation? {
         switch self {
             case .unknownIdentifier(let location, _), .redefinition(let location, _),
-                 .noMatchingFunction(let location, _):
+                 .noMatchingFunction(let location, _), .missingTypeAnnotation(let location, _):
                 return location
             case .argumentMismatch:
                 return nil
@@ -19,7 +20,8 @@ public enum SemanticError: SourceCodeError {
     public var description: String {
         switch self {
             case .unknownIdentifier(_, let message), .redefinition(_, let message),
-                 .argumentMismatch(let message), .noMatchingFunction(_, let message):
+                 .argumentMismatch(let message), .noMatchingFunction(_, let message),
+                 .missingTypeAnnotation(_, let message):
                 return message
         }
     }

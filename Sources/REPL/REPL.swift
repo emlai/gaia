@@ -2,13 +2,13 @@ import LLVM_C
 import LLVM
 import Parse
 import AST
-import IRGen
+import MIR
 import Driver
 
 public final class REPL: Driver {
     private var infoOutputStream: TextOutputStream
     private let parser: Parser
-    private var variables: [String: VariableDefinition]
+    private var variables: [String: ASTVariableDefinition]
     private var executionEngine: LLVM.ExecutionEngine!
 
     public init(inputStream: TextInputStream = Stdin(), outputStream: TextOutputStream = Stdout(),
@@ -37,28 +37,28 @@ public final class REPL: Driver {
 
     public override func handleToplevelExpression(parser: Parser) throws {
         // Evaluate a top-level statement into an anonymous function.
-        let statement = try parser.parseStatement()
+        let astStatement = try parser.parseStatement()
 
         // Except if it's a variable definition.
-        if let variableDefinition = statement as? VariableDefinition {
+        if let variableDefinition = astStatement as? ASTVariableDefinition {
             handleVariableDefinition(variableDefinition)
             return
         }
 
-        var body = variables.map { $0.value as Statement }
-        try body.forEach { _ = try $0.acceptVisitor(typeChecker) }
-        let returnType = try statement.acceptVisitor(typeChecker)?.rawValue
-        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [], returnType: returnType,
-                                          at: /* dummy */ SourceLocation(line: 1, column: 1))
+        var body = try variables.map { try $0.value.acceptVisitor(typeChecker) as! Statement }
+        let statement = try astStatement.acceptVisitor(typeChecker) as! Statement
+        let returnType = (statement as? Expression)?.type ?? .void
+        let prototype = FunctionPrototype(name: "__anon_expr", parameters: [],
+                                          returnType: returnType, body: nil)
         if let expression = statement as? Expression {
-            body.append(ReturnStatement(value: expression, at: SourceLocation(line: -1, column: -1)))
+            body.append(ReturnStatement(value: expression))
         } else {
             body.append(statement)
         }
-        let function = Function(prototype: prototype, body: body)
-        irGenerator.registerFunctionDefinition(function)
+        let function = Function(prototype: prototype, body: body, type: returnType)
+        prototype.body = function
         irGenerator.arguments = []
-        let ir = try function.acceptVisitor(irGenerator) as! LLVM.Function
+        let ir = function.acceptVisitor(irGenerator) as! LLVM.Function
 
         let result = executionEngine.runFunction(ir, args: [])
 
@@ -68,7 +68,7 @@ public final class REPL: Driver {
         initModuleAndFunctionPassManager()
     }
 
-    private func handleVariableDefinition(_ variableDefinition: VariableDefinition) {
+    private func handleVariableDefinition(_ variableDefinition: ASTVariableDefinition) {
         variables[variableDefinition.name] = variableDefinition
     }
 
