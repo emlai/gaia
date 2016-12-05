@@ -225,3 +225,11 @@ private func findCoreLibraryFiles() throws -> [String] {
     let coreLibPath = gaiaHome + "/Core/"
     return try FileManager.default.contentsOfDirectory(atPath: coreLibPath).map { coreLibPath + $0 }
 }
+
+public final class Stdout: TextOutputStream {
+    public init() { }
+
+    public func write(_ string: String) {
+        print(string, terminator: "")
+    }
+}
