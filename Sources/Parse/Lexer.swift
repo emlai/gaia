@@ -147,9 +147,6 @@ final class Lexer {
             character = readNextInputCharacter()
         } while character == " " || character == "\t"
 
-        // TODO
-//        guard let c = character else { return .eof }
-
         if let c = character, CharacterSet.newlines.contains(c) {
             return (currentSourceLocation, .newline)
         }

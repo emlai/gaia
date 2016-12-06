@@ -293,15 +293,4 @@ public final class TypeChecker: ASTVisitor {
                                          at: variableDefinition.sourceLocation)
         return VariableDefinition(name: variableDefinition.name, value: valueNode)
     }
-
-    private func argumentsMatch(_ argumentTypes: [Type], _ prototype: ASTPrototype) -> Bool {
-        let parameterTypes = prototype.parameters.map { $0.type == nil ? nil : Type(rawValue: $0.type!) }
-        if parameterTypes.count != argumentTypes.count { return false }
-        for (parameterType, argumentType) in zip(parameterTypes, argumentTypes) {
-            if parameterType == nil || parameterType == argumentType {
-                return true
-            }
-        }
-        return false
-    }
 }
