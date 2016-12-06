@@ -39,6 +39,11 @@ public final class IRGenerator: MIRVisitor {
             case .not: return buildLogicalNegation(of: unaryOperation.arguments[0])
             case .plus: return buildUnaryOperation(unaryOperation, { _ in { a, _ in a } }, { _ in { a, _ in a } })
             case .minus: return buildUnaryOperation(unaryOperation, Builder.buildNeg, Builder.buildFNeg)
+            case .addressOf:
+                let expressionValue = unaryOperation.arguments[0].acceptVisitor(self)
+                let alloca = builder.buildAlloca(type: expressionValue.type, name: "")
+                _ = builder.buildStore(expressionValue, to: alloca)
+                return alloca
         }
     }
 

@@ -59,6 +59,8 @@ public final class TypeChecker: ASTVisitor {
                 if operand.type == .bool { return operationAsCall(unaryOperation, operand) }
             case .plus, .minus:
                 if [.int, .float].contains(operand.type) { return operationAsCall(unaryOperation, operand) }
+            case .addressOf: return operationAsCall(unaryOperation, operand,
+                                                    returnType: .some(.pointer(to: operand.type)))
         }
         return nil
     }
@@ -146,7 +148,7 @@ public final class TypeChecker: ASTVisitor {
                                                    message: "invalid operand type `\(argumentTypes[0])` " +
                                                             "for unary `\(functionCall.functionName)`")
         }
-        let argumentList = "(\(argumentTypes.map { $0.rawValue }.joined(separator: ", ")))"
+        let argumentList = "(\(argumentTypes.map { $0.description }.joined(separator: ", ")))"
         throw SemanticError.noMatchingFunction(location: functionCall.sourceLocation,
                                                message: "no matching function `\(functionCall.functionName)` " +
                                                         "to call with argument types \(argumentList)")
@@ -237,7 +239,7 @@ public final class TypeChecker: ASTVisitor {
                 Parameter(name: $0.name, type: $1)
             }
             prototype = FunctionPrototype(name: function.prototype.name, parameters: parameters,
-                                          returnType: Type(rawValue: declaredReturnType), body: nil)
+                                          returnType: Type(declaredReturnType), body: nil)
             functionsBeingCurrentlyInstantiated[FunctionSignature(function.prototype.name, argumentTypes)] = prototype
         } else {
             prototype = nil

@@ -64,19 +64,11 @@ public struct FunctionSignature: Hashable {
     }
 }
 
-extension Parameter: Hashable {
-    public static func ==(lhs: Parameter, rhs: Parameter) -> Bool {
-        return lhs.type == rhs.type
-    }
-
-    public var hashValue: Int {
-        return type.hashValue
-    }
-}
-
 extension FunctionPrototype: Hashable {
     public static func ==(lhs: FunctionPrototype, rhs: FunctionPrototype) -> Bool {
-        return lhs.name == rhs.name && lhs.parameters == rhs.parameters && lhs.returnType == rhs.returnType
+        return lhs.name == rhs.name
+            && lhs.parameters.map { $0.type } == rhs.parameters.map { $0.type }
+            && lhs.returnType == rhs.returnType
     }
 
     public var hashValue: Int {

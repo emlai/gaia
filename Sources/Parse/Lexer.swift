@@ -32,6 +32,8 @@ public enum Token: Equatable, CustomStringConvertible {
     case not
     case plus
     case minus
+    case asterisk
+    case ampersand
     case binaryOperator(BinaryOperator)
 
     var isPrimary: Bool {
@@ -68,6 +70,8 @@ public enum Token: Equatable, CustomStringConvertible {
             case (.not, .not): return true
             case (.plus, .plus): return true
             case (.minus, .minus): return true
+            case (.asterisk, .asterisk): return true
+            case (.ampersand, .ampersand): return true
             case (.binaryOperator(let a), .binaryOperator(let b)): return a == b
             default: return false
         }
@@ -94,6 +98,8 @@ public enum Token: Equatable, CustomStringConvertible {
             case .not: return "`!`"
             case .plus: return "`+`"
             case .minus: return "`-`"
+            case .asterisk: return "`*`"
+            case .ampersand: return "`&`"
             case .binaryOperator(let op): return "`\(op)`"
         }
     }
@@ -105,6 +111,7 @@ extension BinaryOperator {
             case .binaryOperator(let op): self = op
             case .plus: self = .plus // FIXME: Can be both unary and binary.
             case .minus: self = .minus // FIXME: Can be both unary and binary.
+            case .asterisk: self = .multiplication
             default: return nil
         }
     }
@@ -211,7 +218,8 @@ final class Lexer {
                 if next == ">" { return (location, .arrow) }
                 unreadInputCharacter(next)
                 return (location, .minus)
-            case "*"?: return (currentSourceLocation, .binaryOperator(.multiplication))
+            case "*"?: return (currentSourceLocation, .asterisk)
+            case "&"?: return (currentSourceLocation, .ampersand)
             case "/"?: return (currentSourceLocation, .binaryOperator(.division))
             default: preconditionFailure()
         }

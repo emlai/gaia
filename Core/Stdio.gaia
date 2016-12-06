@@ -1,6 +1,18 @@
 extern function puts(string: String)
+extern function getline(line: Int8**, size: Int*, stream: Int8*)
+extern function fdopen(fd: Int, mode: String) -> Int8*
+extern function malloc(size: Int) -> Int8*
 
 /** Writes the given string to standard output, terminated with a newline. */
 function print(string: String) {
     puts(string)
+}
+
+/** Reads a line of text from standard input and returns it. */
+function readLine() -> String {
+    line = malloc(0)
+    size = 0
+    stdin = fdopen(0, "r")
+    getline(&line, &size, stdin)
+    return line
 }

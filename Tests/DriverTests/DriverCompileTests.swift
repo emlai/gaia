@@ -194,6 +194,11 @@ class DriverCompileTests: XCTestCase {
                        "^\n")
     }
 
+    func testCoreLibraryReadLineFunction() throws {
+        let result = try compileAndExecute(file: "testCoreLibraryReadLineFunction")
+        XCTAssertEqual(result.programOutput, "foo\n\n") // TODO: Fix readLine to strip terminating newline.
+    }
+
     func testCompilationToJavaScript() throws {
         if !checkCommandExists("node") {
             print("WARNING: Node.js executable not found, skipping test `DriverCompileTests.testCompilationToJavaScript`.")
@@ -235,6 +240,7 @@ class DriverCompileTests: XCTestCase {
         ("testInvalidUnaryPlus", testInvalidUnaryPlus),
         ("testInvalidNumberOfParametersInOperatorFunction", testInvalidNumberOfParametersInOperatorFunction),
         ("testImplicitlyDefinedOperators", testImplicitlyDefinedOperators),
+        ("testCoreLibraryReadLineFunction", testCoreLibraryReadLineFunction),
         ("testCompilationToJavaScript", testCompilationToJavaScript),
     ]
 }

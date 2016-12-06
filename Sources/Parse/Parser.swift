@@ -110,9 +110,9 @@ public final class Parser {
 
         let returnType: String?
         if try nextToken() == .arrow {
-            switch try nextToken() {
-                case .identifier(let typeName): returnType = typeName; _ = try nextToken()
-                default: throw ParseError.unexpectedToken("expected return type after `->`")
+            returnType = try parseTypeName()
+            if returnType == nil {
+                throw ParseError.unexpectedToken("expected return type after `->`")
             }
         } else {
             returnType = nil
@@ -154,17 +154,25 @@ public final class Parser {
 
         switch try nextToken() {
             case .colon:
-                switch try nextToken() {
-                    case .identifier(let typeName):
-                        _ = try nextToken() // consume parameter type
-                        return ASTParameter(name: parameterName, type: typeName, at: parameterNameLocation)
-                    default:
-                        throw ParseError.unexpectedToken("expected parameter type after `:`")
+                guard let type = try? parseTypeName() else {
+                    throw ParseError.unexpectedToken("expected parameter type after `:`")
                 }
+                return ASTParameter(name: parameterName, type: type, at: parameterNameLocation)
             case .comma, .rightParenthesis:
                 return ASTParameter(name: parameterName, type: nil, at: parameterNameLocation)
             default:
                 throw ParseError.unexpectedToken("unexpected \(token!)")
+        }
+    }
+
+    private func parseTypeName() throws -> String? {
+        var typeName = ""
+        while true {
+            switch try nextToken() {
+                case .identifier(let identifier): typeName.append(identifier)
+                case .asterisk: typeName.append("*")
+                default: return typeName.isEmpty ? nil : typeName
+            }
         }
     }
 
@@ -292,6 +300,7 @@ public final class Parser {
             case .not?: unaryOperator = .not
             case .plus?: unaryOperator = .plus
             case .minus?: unaryOperator = .minus
+            case .ampersand?: unaryOperator = .addressOf
             default: throw ParseError.unexpectedToken("expected unary operator")
         }
         let operatorLocation = tokenSourceLocation!

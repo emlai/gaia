@@ -1,0 +1,3 @@
+extern function freopen(filename: Int8*, mode: Int8*, stream: Int8*)
+freopen("testCoreLibraryReadLineFunctionInput.txt", "r", fdopen(0, "r"))
+print(readLine())

@@ -2,6 +2,7 @@ public enum UnaryOperator: String {
     case not = "!"
     case plus = "+"
     case minus = "-"
+    case addressOf = "&"
 }
 
 public enum BinaryOperator: String {
