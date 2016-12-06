@@ -44,16 +44,32 @@ public final class IRGenerator: MIRVisitor {
 
     private func visit(binaryOperation: FunctionCall) -> LLVM.ValueType? {
         switch BinaryOperator(rawValue: binaryOperation.target.name)! {
-            case .plus: return buildBinaryOperation(binaryOperation, Builder.buildAdd, Builder.buildFAdd, "addtmp")
-            case .minus: return buildBinaryOperation(binaryOperation, Builder.buildSub, Builder.buildFSub, "subtmp")
-            case .multiplication: return buildBinaryOperation(binaryOperation, Builder.buildMul, Builder.buildFMul, "multmp")
-            case .division: return buildBinaryOperation(binaryOperation, Builder.buildSDiv, Builder.buildFDiv, "divtmp")
-            case .equals: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntEQ, LLVMRealOEQ, "eqltmp")
-            case .notEquals: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntNE, LLVMRealONE, "neqtmp")
-            case .lessThan: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntSLT, LLVMRealULT, "cmptmp")
-            case .greaterThan: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntSGT, LLVMRealUGT, "cmptmp")
-            case .lessThanOrEqual: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntSLE, LLVMRealULE, "cmptmp")
-            case .greaterThanOrEqual: return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp, LLVMIntSGE, LLVMRealUGE, "cmptmp")
+            case .plus:
+                return buildBinaryOperation(binaryOperation, Builder.buildAdd, Builder.buildFAdd, "addtmp")
+            case .minus:
+                return buildBinaryOperation(binaryOperation, Builder.buildSub, Builder.buildFSub, "subtmp")
+            case .multiplication:
+                return buildBinaryOperation(binaryOperation, Builder.buildMul, Builder.buildFMul, "multmp")
+            case .division:
+                return buildBinaryOperation(binaryOperation, Builder.buildSDiv, Builder.buildFDiv, "divtmp")
+            case .equals:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntEQ, LLVMRealOEQ, "eqltmp")
+            case .notEquals:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntNE, LLVMRealONE, "neqtmp")
+            case .lessThan:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntSLT, LLVMRealULT, "cmptmp")
+            case .greaterThan:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntSGT, LLVMRealUGT, "cmptmp")
+            case .lessThanOrEqual:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntSLE, LLVMRealULE, "cmptmp")
+            case .greaterThanOrEqual:
+                return buildComparisonOperation(binaryOperation, Builder.buildICmp, Builder.buildFCmp,
+                                                LLVMIntSGE, LLVMRealUGE, "cmptmp")
         }
     }
 
