@@ -52,6 +52,10 @@ header nav a {
     margin: auto 20px;
 }
 
+main {
+    font-size: 0.9em;
+}
+
 main:not(.home) {
     position: absolute;
     left: 200px;
@@ -72,9 +76,30 @@ main h1.intro {
     transform: translateX(-50%);
 }
 
+main a {
+    color: #4687c3;
+}
+
+main a:hover {
+    text-decoration: underline;
+}
+
 code {
-    border-radius: 5px;
+    border-radius: 3px;
     font-family: "SF Mono", Consolas, Menlo, "Liberation Mono", monospace;
+    padding: 3px;
+    background-color: #f7f7f7;
+    font-size: 0.85em;
+}
+
+pre code {
+    border-radius: 5px;
+    display: block;
+    padding: 10px;
+}
+
+h1.intro code {
+    background-color: inherit;
 }
 
 code span.string {
@@ -83,6 +108,18 @@ code span.string {
 
 code span.function {
     color: #4687c3;
+}
+
+kbd {
+    font-family: inherit;
+    background-color: #f7f7f7;
+    box-shadow: 0 1px #aaa;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 5px;
+    margin: 0 0 1px 1px;
+    display: inline-block;
+    font-size: 0.85em;
 }
 
 nav.sidebar {
