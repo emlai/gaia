@@ -1,0 +1,18 @@
+sudo: required
+dist: trusty
+
+language: generic
+
+os:
+    - linux
+    - osx
+
+osx_image: xcode8
+
+before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget https://swift.org/builds/swift-3.0-release/ubuntu1404/swift-3.0-RELEASE/swift-3.0-RELEASE-ubuntu14.04.tar.gz -O - | tar xz; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export PATH=$PATH:$PWD/swift-3.0-RELEASE-ubuntu14.04/usr/bin; fi
+
+script:
+    - make
+    - make test
