@@ -12,6 +12,10 @@ osx_image: xcode8
 before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget https://swift.org/builds/swift-3.0-release/ubuntu1404/swift-3.0-RELEASE/swift-3.0-RELEASE-ubuntu14.04.tar.gz -O - | tar xz; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export PATH=$PATH:$PWD/swift-3.0-RELEASE-ubuntu14.04/usr/bin; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository 'deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.9 main'; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update && sudo apt-get -y install llvm-3.9-dev; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update && brew install llvm; fi
 
 script:
     - make
