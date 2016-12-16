@@ -6,6 +6,9 @@ in very early stages of development. For an introduction, check out the
 
 ## 📖 Usage
 
+Install the dependencies: [Swift](https://swift.org) 3 and
+[LLVM](http://llvm.org) 3.9.
+
 - `make` compiles the project.
 - `make test` runs the tests.
 
