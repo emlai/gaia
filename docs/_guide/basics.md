@@ -47,6 +47,15 @@ You can also pass `gaia` multiple files. In this case, one of them must be named
 program to execute. The rest of the files should contain functions that you can
 use from `main.gaia` without explicitly importing those files in your code.
 
+## Printing
+
+As shown above, you can print text using the `print` function from the standard
+library:
+
+    print("Hello, World!")
+
+This will print the given string, terminating it with a newline.
+
 ## Variables
 
     six = 6
@@ -94,3 +103,10 @@ Functions are declared using the `function` keyword, as follows:
 
     print(guess(666))
     print(guess(42))
+
+## Operator overloading
+
+Some operators are overloadable. This includes `==`, `<`, `+` (both infix and
+prefix), `-` (both infix and prefix), `*`, and `/`. The definition of an
+operator overload looks the same as a function definition, except that the
+function name is the operator symbol.
